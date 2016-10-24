@@ -1,4 +1,5 @@
 #include <RFM69.h>    //get it here: https://www.github.com/lowpowerlab/rfm69
+#include <RFM69registers.h>
 #include <SPI.h>
 
 #define LED 13
@@ -12,6 +13,8 @@ typedef struct {
 Packet data;
 
 
+//RF_BITRATEMSB_1200            0x68
+//RF_BITRATELSB_1200            0x2B
 void setup() {
   pinMode(LED, OUTPUT);
   
@@ -31,9 +34,10 @@ void setup() {
     Blink(100);
     Blink(100);
   }
+  radio.setPowerLevel(31);
+  radio.writeReg(REG_BITRATEMSB, RF_BITRATEMSB_1200);
+  radio.writeReg(REG_BITRATELSB, RF_BITRATELSB_1200);
 
-  
-  radio.setPowerLevel(15);
   
   Blink(1000);
   Blink(1000);

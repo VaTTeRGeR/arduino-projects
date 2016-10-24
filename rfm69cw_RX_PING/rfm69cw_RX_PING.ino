@@ -1,4 +1,5 @@
 #include <RFM69.h>    //get it here: https://www.github.com/lowpowerlab/rfm69
+#include <RFM69registers.h>    //get it here: https://www.github.com/lowpowerlab/rfm69
 #include <SPI.h>
 
 #define LED 13
@@ -19,7 +20,22 @@ void setup() {
   Blink(1000);
   Blink(1000);
   
-  radio.initialize(RF69_433MHZ, 2, 100);
+  if(radio.initialize(RF69_433MHZ, 2, 100)) {
+    Blink(100);
+    Blink(100);
+    Blink(100);
+    Blink(100);
+    Blink(100);
+    Blink(100);
+    Blink(100);
+    Blink(100);
+    Blink(100);
+    Blink(100);
+  }
+  radio.setPowerLevel(31);
+  radio.writeReg(REG_BITRATEMSB, RF_BITRATEMSB_1200);
+  radio.writeReg(REG_BITRATELSB, RF_BITRATELSB_1200);
+
   
   Blink(1000);
   Blink(1000);
