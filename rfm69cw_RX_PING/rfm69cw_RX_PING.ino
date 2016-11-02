@@ -17,28 +17,18 @@ void setup() {
   pinMode(13, OUTPUT);
 
   Blink(1000);
-  Blink(1000);
-  Blink(1000);
   
   if(radio.initialize(RF69_433MHZ, 2, 100)) {
     Blink(100);
     Blink(100);
     Blink(100);
     Blink(100);
-    Blink(100);
-    Blink(100);
-    Blink(100);
-    Blink(100);
-    Blink(100);
-    Blink(100);
   }
   radio.setPowerLevel(31);
-  radio.writeReg(REG_BITRATEMSB, RF_BITRATEMSB_1200);
-  radio.writeReg(REG_BITRATELSB, RF_BITRATELSB_1200);
+  radio.writeReg(REG_BITRATEMSB, RF_BITRATEMSB_9600);
+  radio.writeReg(REG_BITRATELSB, RF_BITRATELSB_9600);
 
   
-  Blink(1000);
-  Blink(1000);
   Blink(1000);
 }
 

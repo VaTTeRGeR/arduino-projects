@@ -19,39 +19,31 @@ void setup() {
   pinMode(LED, OUTPUT);
   
   Blink(1000);
-  Blink(1000);
-  Blink(1000);
   
   if(radio.initialize(RF69_433MHZ, 1, 100)) {
     Blink(100);
     Blink(100);
     Blink(100);
     Blink(100);
-    Blink(100);
-    Blink(100);
-    Blink(100);
-    Blink(100);
-    Blink(100);
-    Blink(100);
   }
   radio.setPowerLevel(31);
-  radio.writeReg(REG_BITRATEMSB, RF_BITRATEMSB_1200);
-  radio.writeReg(REG_BITRATELSB, RF_BITRATELSB_1200);
+  radio.writeReg(REG_BITRATEMSB, RF_BITRATEMSB_9600);
+  radio.writeReg(REG_BITRATELSB, RF_BITRATELSB_9600);
 
   
-  Blink(1000);
-  Blink(1000);
   Blink(1000);
   
   data.number = 133;//7;
 }
 
 void loop() {
-    radio.send(2, (const void*)(&data), sizeof(data));
-    Blink(100);
+  unsigned long t0 = millis();
+  radio.send(2, (const void*)(&data), sizeof(data));
+  t0 = millis() - t0;
+  Blink(max(0, 100-t0));
 }
 
-void Blink(byte DELAY_MS) {
+void Blink(unsigned int DELAY_MS) {
     digitalWrite(LED, HIGH);
     delay(DELAY_MS);
     digitalWrite(LED, LOW);
