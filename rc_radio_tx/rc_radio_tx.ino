@@ -29,65 +29,96 @@
 
 #define TX_PER_SECOND 30
 
+#define SIGNAL_WARN_LB -85
+#define SIGNAL_WARN_UB -115
+#define SIGNAL_WARN_TIME 500
+
 RFM69 radio;
 
 typedef struct {
-  uint16_t xl;
-  uint16_t yl;
-  uint16_t xr;
-  uint16_t yr;
+  uint16_t x_left;
+  uint16_t y_left;
+  uint16_t x_right;
+  uint16_t y_right;
   uint8_t flags;
 } Packet;
 
+typedef struct {
+  signed int rssi;
+} PacketRSSI;
+
 Packet packet;
+PacketRSSI packetRSSI;
 
 boolean radio_ready = false;
 
 void setup() {
   pinMode(LED_R, OUTPUT);
   pinMode(LED_G, OUTPUT);
+  pinMode(LED_DEFAULT, OUTPUT);
   
   if(radio.initialize(RF69_433MHZ, TX_RFM69, NETWORK_RFM69)) {
     radio_ready = true;
   }
   
   radio.setHighPower();
-  radio.setPowerLevel(24); //24 => 13db for HCW/HW
+  radio.setPowerLevel(18); //0 => 5db || 18 => 13.56db for HCW/HW
   
   radio.writeReg(REG_BITRATEMSB, RF_BITRATEMSB_9600);
   radio.writeReg(REG_BITRATELSB, RF_BITRATELSB_9600);
 }
 
-void loop() {
-    if(radio_ready){
-      unsigned long t_send = millis();
-      
-      packet.xl = getXLeft();
-      packet.yl = getYLeft();
-      packet.xr = getXRight();
-      packet.yr = getYRight();
-      packet.flags = 0xAA;
-      
-      radio.send(RX_RFM69, (const void*)(&packet), sizeof(packet));
-      
-      //waitIdle(1000/20);
-      blinkLed((1000/TX_PER_SECOND) - max(0, millis() - t_send), LED_G);
-  } else {
-      blinkLed(200, LED_R);
-    }
-}
+unsigned long t_last_rssi = 0;
 
-void idleLoop() {
+void loop() {
+  if(radio_ready){
+    digitalWrite(LED_G, HIGH);
+    
+    unsigned long t_send = millis();
+    
+    packet.x_left = getXLeft();
+    packet.y_left = getYLeft();
+    packet.x_right = getXRight();
+    packet.y_right = getYRight();
+    packet.flags = 0xAA;
+    
+    radio.send(RX_RFM69, (const void*)(&packet), sizeof(packet));
+
+    digitalWrite(LED_G, LOW);
+
+    radio.receiveDone();
+
+    wait((1000/TX_PER_SECOND) - max(0, millis() - t_send));
+
     if(radio.receiveDone()) {
-      if(radio.DATALEN == sizeof(Packet)) {
-        packet = *(Packet*)radio.DATA;
-        if(packet.flags == 0xAA) {
-          blinkLed(10, LED_R);
+      if(radio.DATALEN == sizeof(packetRSSI)) {
+        packetRSSI = *(PacketRSSI*)radio.DATA;
+        t_last_rssi = millis();
+        if(packetRSSI.rssi <= SIGNAL_WARN_LB) {
+          signed int rssi = packetRSSI.rssi;
+          rssi = max(SIGNAL_WARN_UB, rssi);
+          rssi = min(SIGNAL_WARN_LB, rssi);
+          rssi = map(rssi, SIGNAL_WARN_LB, SIGNAL_WARN_UB, 0, 255);
+          analogWrite(LED_R, rssi);
         } else {
-          //TODO
+          analogWrite(LED_R, 0);
         }
       }
     }
+  } else {
+    blinkLed(200, LED_R);
+  }
+
+  if(millis() - t_last_rssi >= SIGNAL_WARN_TIME) {
+    t_last_rssi = millis() - SIGNAL_WARN_TIME;
+    digitalWrite(LED_R, HIGH);
+    wait(10);
+    digitalWrite(LED_R, LOW);
+    wait(10);
+    digitalWrite(LED_R, HIGH);
+    wait(10);
+    digitalWrite(LED_R, LOW);
+  }
 }
 
 // UTIL METHOD SECTION
@@ -105,11 +136,4 @@ void blinkLed(unsigned int DELAY_MS, unsigned int LED_PIN) {
 void wait(long t_wait) {
   long t_now = millis();
   while(millis() < t_now + t_wait){}
-}
-
-void waitIdle(long t_wait) {
-  long t_now = millis();
-  while(millis() < t_now + t_wait){
-    idleLoop();
-  }
 }

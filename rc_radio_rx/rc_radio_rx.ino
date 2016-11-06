@@ -27,7 +27,7 @@
 
 #define NETWORK_RFM69 100
 
-#define TX_PER_SECOND 30
+#define TX_PER_SECOND 10
 
 RFM69 radio;
 
@@ -41,29 +41,47 @@ typedef struct {
 
 Packet packet;
 
+typedef struct {
+  signed int rssi;
+} PacketRSSI;
+
+PacketRSSI packetRSSI;
+
 boolean radio_ready = false;
 
 void setup() {
-  pinMode(LED_R, OUTPUT);
-  pinMode(LED_G, OUTPUT);
+  //pinMode(LED_R, OUTPUT);
+  //pinMode(LED_G, OUTPUT);
   pinMode(LED_DEFAULT, OUTPUT);
   
   if(radio.initialize(RF69_433MHZ, RX_RFM69, NETWORK_RFM69)) {
     radio_ready = true;
+  } else {
   }
   
-  radio.setPowerLevel(0); //24 => 13db for HCW/HW
+  radio.setPowerLevel(31); // 23 => 5db for CW/W
   
   radio.writeReg(REG_BITRATEMSB, RF_BITRATEMSB_9600);
   radio.writeReg(REG_BITRATELSB, RF_BITRATELSB_9600);
 }
 
+int count = 0;
+
 void loop() {
-  if(radio.receiveDone()) {
+  if(radio.receiveDone() && radio_ready) {
     if(radio.DATALEN == sizeof(Packet)) {
+      
       packet = *(Packet*)radio.DATA;
       if(packet.flags == 0xAA) {
+        
         analogWrite(LED_DEFAULT, max(1,min(255, map(abs(((signed int)packet.y_right) - 512), 0, 512, 0, 255))));
+
+        count = (count+1)%5;
+        if(count == 0) {
+          packetRSSI.rssi = radio.RSSI;
+          radio.send(TX_RFM69, (const void*)(&packetRSSI), sizeof(packetRSSI));
+        }
+        
       } else {
         blinkLed(10, LED_DEFAULT);
       }
