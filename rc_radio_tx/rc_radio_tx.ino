@@ -62,7 +62,7 @@ void setup() {
   }
   
   radio.setHighPower();
-  radio.setPowerLevel(18); //0 => 5db || 18 => 13.56db for HCW/HW
+  radio.setPowerLevel(18);
   
   radio.writeReg(REG_BITRATEMSB, RF_BITRATEMSB_9600);
   radio.writeReg(REG_BITRATELSB, RF_BITRATELSB_9600);
