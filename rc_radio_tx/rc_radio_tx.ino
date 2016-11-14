@@ -1,6 +1,10 @@
-#include <RFM69.h>    //get it here: https://www.github.com/lowpowerlab/rfm69
-#include <RFM69registers.h>
 #include <SPI.h>
+
+#include <RFM69.h>
+#include <RFM69registers.h>
+
+#include <Adafruit_GFX.h>
+#include <Adafruit_PCD8544.h>
 
 #define LED_R 5
 #define LED_G 6
@@ -33,8 +37,6 @@
 #define SIGNAL_WARN_UB -115
 #define SIGNAL_WARN_TIME 500
 
-RFM69 radio;
-
 typedef struct {
   uint16_t x_left;
   uint16_t y_left;
@@ -47,28 +49,46 @@ typedef struct {
   signed int rssi;
 } PacketRSSI;
 
+RFM69 radio;
+Adafruit_PCD8544 pcd = Adafruit_PCD8544(7, 8, 9);
+
 Packet packet;
 PacketRSSI packetRSSI;
 
 boolean radio_ready = false;
 
+unsigned long t_last_rssi = 0;
+
+
 void setup() {
   pinMode(LED_R, OUTPUT);
   pinMode(LED_G, OUTPUT);
   pinMode(LED_DEFAULT, OUTPUT);
+
+  digitalWrite(LED_G, LOW);
+  digitalWrite(LED_R, LOW);
+  digitalWrite(LED_DEFAULT, LOW);
   
+  pcd.begin();
+  pcd.setContrast(50);
+
+  pcd.display();
+  
+  delay(500);
+  
+  pcd.clearDisplay();
+
   if(radio.initialize(RF69_433MHZ, TX_RFM69, NETWORK_RFM69)) {
     radio_ready = true;
+    
+    radio.setHighPower();
+    radio.setPowerLevel(18);
+  
+    radio.writeReg(REG_BITRATEMSB, RF_BITRATEMSB_9600);
+    radio.writeReg(REG_BITRATELSB, RF_BITRATELSB_9600);
   }
-  
-  radio.setHighPower();
-  radio.setPowerLevel(18);
-  
-  radio.writeReg(REG_BITRATEMSB, RF_BITRATEMSB_9600);
-  radio.writeReg(REG_BITRATELSB, RF_BITRATELSB_9600);
 }
 
-unsigned long t_last_rssi = 0;
 
 void loop() {
   if(radio_ready){
@@ -105,20 +125,36 @@ void loop() {
         }
       }
     }
+    
+    if(millis() - t_last_rssi >= SIGNAL_WARN_TIME) {
+      t_last_rssi = millis() - SIGNAL_WARN_TIME;
+      digitalWrite(LED_R, HIGH);
+      wait(10);
+      digitalWrite(LED_R, LOW);
+      wait(10);
+      digitalWrite(LED_R, HIGH);
+      wait(10);
+      digitalWrite(LED_R, LOW);
+    }
+    
   } else {
-    blinkLed(200, LED_R);
+    //blinkLed(200, LED_R);
   }
+  pcd.clearDisplay();
+  
+  pcd.drawRect(13, 11, 20 ,18, BLACK);
+  pcd.drawRect(13+42, 11, 20 ,18, BLACK);
 
-  if(millis() - t_last_rssi >= SIGNAL_WARN_TIME) {
-    t_last_rssi = millis() - SIGNAL_WARN_TIME;
-    digitalWrite(LED_R, HIGH);
-    wait(10);
-    digitalWrite(LED_R, LOW);
-    wait(10);
-    digitalWrite(LED_R, HIGH);
-    wait(10);
-    digitalWrite(LED_R, LOW);
-  }
+  int pxlPos = ((getXLeft()*20)/1023)+12;
+  int pylPos = (((1023 - getYLeft())*18)/1023)+12;
+
+  int pxrPos = ((getXRight()*20)/1023)+12+42;
+  int pyrPos = (((1023-getYRight())*18)/1023)+12;
+
+  pcd.drawPixel(pxlPos,pylPos, BLACK);
+  pcd.drawPixel(pxrPos,pyrPos, BLACK);
+  
+  pcd.display();
 }
 
 // UTIL METHOD SECTION
