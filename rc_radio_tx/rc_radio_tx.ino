@@ -10,11 +10,11 @@
 #define LED_G 6
 #define LED_DEFAULT 13
 
-#define getXLeft() analogRead(A1)
-#define getYLeft() analogRead(A0)
+#define getXLeft() ((long)analogRead(A1))
+#define getYLeft() ((long)analogRead(A0))
 
-#define getXRight() (1023 - analogRead(A2))
-#define getYRight() analogRead(A3)
+#define getXRight() (1023L - ((long)analogRead(A2)))
+#define getYRight() ((long)analogRead(A3))
 
 #define BITN 0x00
 #define BIT0 0x01
@@ -63,13 +63,12 @@ unsigned long t_last_rssi = 0;
 void setup() {
   pinMode(LED_R, OUTPUT);
   pinMode(LED_G, OUTPUT);
-  pinMode(LED_DEFAULT, OUTPUT);
 
   digitalWrite(LED_G, LOW);
-  digitalWrite(LED_R, LOW);
-  digitalWrite(LED_DEFAULT, LOW);
+  digitalWrite(LED_R, HIGH);
   
   pcd.begin();
+  
   pcd.setContrast(50);
 
   pcd.display();
@@ -78,14 +77,16 @@ void setup() {
   
   pcd.clearDisplay();
 
-  if(radio.initialize(RF69_433MHZ, TX_RFM69, NETWORK_RFM69)) {
-    radio_ready = true;
+  if(false/* && radio.initialize(RF69_433MHZ, TX_RFM69, NETWORK_RFM69)*/) {
+    if(radio.getFrequency() == 433000000L) {
+      radio_ready = true;
     
-    radio.setHighPower();
-    radio.setPowerLevel(18);
+      radio.setHighPower();
+      radio.setPowerLevel(18);
   
-    radio.writeReg(REG_BITRATEMSB, RF_BITRATEMSB_9600);
-    radio.writeReg(REG_BITRATELSB, RF_BITRATELSB_9600);
+      radio.writeReg(REG_BITRATEMSB, RF_BITRATEMSB_9600);
+      radio.writeReg(REG_BITRATELSB, RF_BITRATELSB_9600);
+    }
   }
 }
 
@@ -135,24 +136,36 @@ void loop() {
       digitalWrite(LED_R, HIGH);
       wait(10);
       digitalWrite(LED_R, LOW);
+      wait(10);
     }
     
   } else {
-    //blinkLed(200, LED_R);
+    blinkLed(20, LED_R);
   }
+  
   pcd.clearDisplay();
   
-  pcd.drawRect(13, 11, 20 ,18, BLACK);
-  pcd.drawRect(13+42, 11, 20 ,18, BLACK);
+  pcd.drawRect(41, 0, 2 ,48, BLACK);
+  pcd.drawRect(0, 0, 84 ,48, BLACK);
 
-  int pxlPos = ((getXLeft()*20)/1023)+12;
-  int pylPos = (((1023 - getYLeft())*18)/1023)+12;
+  pcd.setTextSize(1);
+  pcd.setCursor(2,2);
+  pcd.print(radio_ready ? "ROK" : "ERR");
 
-  int pxrPos = ((getXRight()*20)/1023)+12+42;
-  int pyrPos = (((1023-getYRight())*18)/1023)+12;
+  int pxl = ((getXLeft()*41L)/1023L);
+  int pyl = (((1023L - getYLeft())*47L)/1023L);
 
-  pcd.drawPixel(pxlPos,pylPos, BLACK);
-  pcd.drawPixel(pxrPos,pyrPos, BLACK);
+  int pxr = ((getXRight()*41L)/1023L);
+  int pyr = (((1023L - getYRight())*47L)/1023L);
+
+  pcd.drawFastVLine(pxl, 0, 48, BLACK);
+  pcd.drawFastHLine(0, pyl, 42, BLACK);
+  
+  pcd.drawFastVLine(pxr + 42, 0, 48, BLACK);
+  pcd.drawFastHLine(42, pyr, 42, BLACK);
+
+  pcd.drawRect(pxl-2, pyl-2, 5, 5, BLACK);
+  pcd.drawRect(pxr-2 + 42, pyr-2, 5, 5, BLACK);
   
   pcd.display();
 }
