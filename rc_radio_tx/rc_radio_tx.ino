@@ -16,6 +16,10 @@
 #define getXRight() (1023L - ((long)analogRead(A2)))
 #define getYRight() ((long)analogRead(A3))
 
+#define getJB() (!digitalRead(4))
+#define getJX() (1023L - (long)analogRead(A7))
+#define getJY() ((long)analogRead(A6))
+
 #define BITN 0x00
 #define BIT0 0x01
 #define BIT1 0x02
@@ -63,6 +67,10 @@ unsigned long t_last_rssi = 0;
 void setup() {
   pinMode(LED_R, OUTPUT);
   pinMode(LED_G, OUTPUT);
+
+  pinMode(4, INPUT);
+  pinMode(A6, INPUT);
+  pinMode(A7, INPUT);
 
   digitalWrite(LED_G, LOW);
   digitalWrite(LED_R, HIGH);
@@ -155,17 +163,22 @@ void loop() {
   int pxl = ((getXLeft()*41L)/1023L);
   int pyl = (((1023L - getYLeft())*47L)/1023L);
 
-  int pxr = ((getXRight()*41L)/1023L);
-  int pyr = (((1023L - getYRight())*47L)/1023L);
+  //int pxr = ((getXRight()*41L)/1023L);
+  //int pyr = (((1023L - getYRight())*47L)/1023L);
+
+  int pxr = ((getJX()*41L)/1023L);
+  int pyr = (((1023L - getJY())*47L)/1023L);
 
   pcd.drawFastVLine(pxl, 0, 48, BLACK);
   pcd.drawFastHLine(0, pyl, 42, BLACK);
-  
-  pcd.drawFastVLine(pxr + 42, 0, 48, BLACK);
-  pcd.drawFastHLine(42, pyr, 42, BLACK);
 
-  pcd.drawRect(pxl-2, pyl-2, 5, 5, BLACK);
-  pcd.drawRect(pxr-2 + 42, pyr-2, 5, 5, BLACK);
+  if(!getJB()) {
+    pcd.drawFastVLine(pxr + 42, 0, 48, BLACK);
+    pcd.drawFastHLine(42, pyr, 42, BLACK);
+
+    pcd.drawRect(pxl-2, pyl-2, 5, 5, BLACK);
+    pcd.drawRect(pxr-2 + 42, pyr-2, 5, 5, BLACK);
+  }
   
   pcd.display();
 }
