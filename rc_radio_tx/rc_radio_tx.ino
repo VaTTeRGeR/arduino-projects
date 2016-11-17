@@ -125,7 +125,7 @@ void loop() {
         t_last_rssi = millis();
         if(packetRSSI.rssi <= SIGNAL_WARN_LB) {
           signed int rssi = packetRSSI.rssi;
-          rssi = max(SIGNAL_WARN_UB, rssi);
+          rssi = max(SIGNAL_WARN_UB, rssi); 
           rssi = min(SIGNAL_WARN_LB, rssi);
           rssi = map(rssi, SIGNAL_WARN_LB, SIGNAL_WARN_UB, 0, 255);
           analogWrite(LED_R, rssi);
@@ -148,7 +148,8 @@ void loop() {
     }
     
   } else {
-    blinkLed(20, LED_R);
+    digitalWrite(LED_R, HIGH);
+    digitalWrite(LED_G, LOW);
   }
   
   pcd.clearDisplay();
@@ -184,16 +185,6 @@ void loop() {
 }
 
 // UTIL METHOD SECTION
-
-void blinkLed(unsigned int DELAY_MS, unsigned int LED_PIN) {
-    digitalWrite(LED_PIN, HIGH);
-
-    wait((2*DELAY_MS)/10);
-    
-    digitalWrite(LED_PIN, LOW);
-
-    wait((8*DELAY_MS)/10);
-}
 
 void wait(long t_wait) {
   long t_now = millis();
