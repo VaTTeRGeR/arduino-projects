@@ -6,12 +6,6 @@
 #define LED_G 6
 #define LED_DEFAULT 13
 
-#define getXLeft() analogRead(A1)
-#define getYLeft() analogRead(A0)
-
-#define getXRight() (1023 - analogRead(A2))
-#define getYRight() analogRead(A3)
-
 #define BITN 0x00
 #define BIT0 0x01
 #define BIT1 0x02
@@ -27,15 +21,15 @@
 
 #define NETWORK_RFM69 100
 
-#define TX_PER_SECOND 10
+#define TX_PER_SECOND 30
 
 RFM69 radio;
 
 typedef struct {
-  uint16_t x_left;
-  uint16_t y_left;
-  uint16_t x_right;
-  uint16_t y_right;
+  uint8_t x_left;
+  uint8_t y_left;
+  uint8_t x_right;
+  uint8_t y_right;
   uint8_t flags;
 } Packet;
 
@@ -50,19 +44,18 @@ PacketRSSI packetRSSI;
 boolean radio_ready = false;
 
 void setup() {
-  //pinMode(LED_R, OUTPUT);
-  //pinMode(LED_G, OUTPUT);
   pinMode(LED_DEFAULT, OUTPUT);
   
   if(radio.initialize(RF69_433MHZ, RX_RFM69, NETWORK_RFM69)) {
-    radio_ready = true;
-  } else {
+    if(radio.readReg(REG_SYNCVALUE2) == NETWORK_RFM69) {
+      radio_ready = true;
+    
+      radio.setPowerLevel(31);
+  
+      radio.writeReg(REG_BITRATEMSB, RF_BITRATEMSB_9600);
+      radio.writeReg(REG_BITRATELSB, RF_BITRATELSB_9600);
+    }
   }
-  
-  radio.setPowerLevel(31); // 23 => 5db for CW/W
-  
-  radio.writeReg(REG_BITRATEMSB, RF_BITRATEMSB_9600);
-  radio.writeReg(REG_BITRATELSB, RF_BITRATELSB_9600);
 }
 
 int count = 0;
@@ -74,7 +67,7 @@ void loop() {
       packet = *(Packet*)radio.DATA;
       if(packet.flags == 0xAA) {
         
-        analogWrite(LED_DEFAULT, max(1,min(255, map(abs(((signed int)packet.y_right) - 512), 0, 512, 0, 255))));
+        analogWrite(LED_DEFAULT, max(1,min(255, abs(((signed int)packet.y_right) - 128))));
 
         count = (count+1)%5;
         if(count == 0) {
