@@ -1,27 +1,27 @@
 #include <Wire.h>
 #include <Servo.h>
 
-int gyro_x, gyro_y, gyro_z;
-long acc_x, acc_y, acc_z, acc_total_vector;
-int temperature;
-long gyro_x_cal, gyro_y_cal, gyro_z_cal;
-long loop_timer;
-float angle_pitch, angle_roll;
-int angle_pitch_buffer, angle_roll_buffer;
+int     gyro_x, gyro_y, gyro_z;
+long    acc_x, acc_y, acc_z, acc_total_vector;
+int     temperature;
+long    gyro_x_cal, gyro_y_cal, gyro_z_cal;
+long    loop_timer;
+float   angle_pitch, angle_roll;
+int     angle_pitch_buffer, angle_roll_buffer;
 boolean set_gyro_angles;
-float angle_roll_acc, angle_pitch_acc;
-float angle_pitch_output, angle_roll_output;
+float   angle_roll_acc, angle_pitch_acc;
+float   angle_pitch_output, angle_roll_output;
 
-long still_length_acc;
+long    still_length_acc;
 
-int samplerate = 100;
+#define samplerate  100
 
 Servo servo;
 
 void setup() {
   Wire.begin();                                                        //Start I2C as master
   //Serial.begin(115200);                                               //Use only for debugging
-  pinMode(13, OUTPUT);                                                 //Set output 13 (LED) as outputü
+  pinMode(13, OUTPUT);                                                 //Set output 13 (LED) as output
   
   setup_mpu_6050_registers();                                          //Setup the registers of the MPU-6050 (500dfs / +/-8g) and start the gyro
 
@@ -103,7 +103,7 @@ void loop(){
 
   servo.write(map(angle_pitch_output, -90, 90, 0, 180));
   
-  while(micros() - loop_timer < 1000000/samplerate);                                 //Wait until the loop_timer reaches 4000us (250Hz) before starting the next loop
+  while(micros() - loop_timer < 1000000/samplerate);                                 //Wait until the loop_timer reaches target before starting the next loop
   loop_timer = micros();                                               //Reset the loop timer
 }
 
@@ -114,6 +114,9 @@ void read_mpu_6050_data(){                                             //Subrout
   Wire.endTransmission();                                              //End the transmission
   Wire.requestFrom(0x68,14);                                           //Request 14 bytes from the MPU-6050
   while(Wire.available() < 14);                                        //Wait until all the bytes are received
+  
+  //READS IN THIS ORDER: AX, AY, AZ | GX, GY, GZ
+  
   acc_x = Wire.read()<<8|Wire.read();                                  //Add the low and high byte to the acc_x variable
   acc_y = Wire.read()<<8|Wire.read();                                  //Add the low and high byte to the acc_y variable
   acc_z = Wire.read()<<8|Wire.read();                                  //Add the low and high byte to the acc_z variable
