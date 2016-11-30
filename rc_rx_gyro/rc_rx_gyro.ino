@@ -14,25 +14,18 @@ void setup() {
   
   pwm.begin();
   pwm.setPWMFreq(SERVOFREQ);
+  setThrottle(0);
 }
 
 void loop() {
-  digitalWrite(13, HIGH);
-  setThrottle(100);
-  
-  delay(7000);
-  
-  digitalWrite(13, LOW);
-  setThrottle(0);
-  
   while(true){
-    for(int i = 0; i <= 25; i++) {
-      setThrottle(i);
-      delay(100);
+    for(int i = 0; i <= 90; i++) {
+      pwm.setPWM(15, 0, mapAngle(45+i));
+      delay(20);
     }
-    for(int i = 0; i <= 25; i++) {
-      setThrottle(25-i);
-      delay(100);
+    for(int i = 0; i <= 90; i++) {
+      pwm.setPWM(15, 0, mapAngle(135-i));
+      delay(20);
     }
   }
 }
