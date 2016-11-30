@@ -34,7 +34,7 @@ unsigned long                 t_last_update = 0; // time needed to complete the 
 
 /* --- */
 
-byte contrast = 40;
+byte contrast = 38;
 
 void setup() {
 
