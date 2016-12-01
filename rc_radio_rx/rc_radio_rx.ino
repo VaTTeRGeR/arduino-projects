@@ -61,25 +61,6 @@ void setup() {
 int count = 0;
 
 void loop() {
-  if(radio.receiveDone() && radio_ready) {
-    if(radio.DATALEN == sizeof(Packet)) {
-      
-      packet = *(Packet*)radio.DATA;
-      if(packet.flags == 0xAA) {
-        
-        analogWrite(LED_DEFAULT, max(1,min(255, abs(((signed int)packet.y_right) - 128))));
-
-        count = (count+1)%5;
-        if(count == 0) {
-          packetRSSI.rssi = radio.RSSI;
-          radio.send(TX_RFM69, (const void*)(&packetRSSI), sizeof(packetRSSI));
-        }
-        
-      } else {
-        blinkLed(10, LED_DEFAULT);
-      }
-    }
-  }
 }
 
 void idleLoop() {
@@ -98,8 +79,7 @@ void blinkLed(unsigned int DELAY_MS, unsigned int LED_PIN) {
 }
 
 void wait(long t_wait) {
-  long t_now = millis();
-  while(millis() < t_now + t_wait){}
+  for(long t_now = millis(); millis() < t_now + t_wait; ){}
 }
 
 void waitIdle(long t_wait) {
