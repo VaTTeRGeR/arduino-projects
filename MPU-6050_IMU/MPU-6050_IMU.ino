@@ -19,31 +19,14 @@ long    still_length_acc;
 Servo servo;
 
 void setup() {
-  Wire.begin();                                                        //Start I2C as master
   //Serial.begin(115200);                                               //Use only for debugging
   pinMode(13, OUTPUT);                                                 //Set output 13 (LED) as output
   
-  setup_mpu_6050_registers();                                          //Setup the registers of the MPU-6050 (500dfs / +/-8g) and start the gyro
+  setup_mpu_6050();                                          //Setup the registers of the MPU-6050 (500dfs / +/-8g) and start the gyro
 
   digitalWrite(13, HIGH);                                              //Set digital output 13 high to indicate startup
 
-  int cal_rounds = 500;
-  for (int cal_int = 0; cal_int < cal_rounds ; cal_int ++){                  //Run this code 2000 times
-    read_mpu_6050_data();                                              //Read the raw acc and gyro data from the MPU-6050
-    gyro_x_cal += gyro_x;                                              //Add the gyro x-axis offset to the gyro_x_cal variable
-    gyro_y_cal += gyro_y;                                              //Add the gyro y-axis offset to the gyro_y_cal variable
-    gyro_z_cal += gyro_z;                                              //Add the gyro z-axis offset to the gyro_z_cal variable
-
-    still_length_acc += sqrt((acc_x*acc_x)+(acc_y*acc_y)+(acc_z*acc_z));
-    
-    delay(2);                                                          //Delay 3us to simulate the 250Hz program loop
-  }
-  
-  gyro_x_cal /= cal_rounds;                                                  //Divide the gyro_x_cal variable by 2000 to get the avarage offset
-  gyro_y_cal /= cal_rounds;                                                  //Divide the gyro_y_cal variable by 2000 to get the avarage offset
-  gyro_z_cal /= cal_rounds;                                                  //Divide the gyro_z_cal variable by 2000 to get the avarage offset
-
-  still_length_acc /= cal_rounds;
+  calibrate_mpu_6050();
 
   servo.attach(9);
   
@@ -127,7 +110,8 @@ void read_mpu_6050_data(){                                             //Subrout
 
 }
 
-void setup_mpu_6050_registers(){
+void setup_mpu_6050(){
+  Wire.begin();                                                        //Start I2C as master
   //Activate the MPU-6050
   Wire.beginTransmission(0x68);                                        //Start communicating with the MPU-6050
   Wire.write(0x6B);                                                    //Send the requested starting register
@@ -145,16 +129,23 @@ void setup_mpu_6050_registers(){
   Wire.endTransmission();                                              //End the transmission
 }
 
+void calibrate_mpu_6050(){
+  int cal_rounds = 500;
+  for (int cal_int = 0; cal_int < cal_rounds ; cal_int ++){                  //Run this code 2000 times
+    read_mpu_6050_data();                                              //Read the raw acc and gyro data from the MPU-6050
+    gyro_x_cal += gyro_x;                                              //Add the gyro x-axis offset to the gyro_x_cal variable
+    gyro_y_cal += gyro_y;                                              //Add the gyro y-axis offset to the gyro_y_cal variable
+    gyro_z_cal += gyro_z;                                              //Add the gyro z-axis offset to the gyro_z_cal variable
 
+    still_length_acc += sqrt((acc_x*acc_x)+(acc_y*acc_y)+(acc_z*acc_z));
+    
+    delay(2);                                                          //Delay 3us to simulate the 250Hz program loop
+  }
+  
+  gyro_x_cal /= cal_rounds;                                                  //Divide the gyro_x_cal variable by 2000 to get the avarage offset
+  gyro_y_cal /= cal_rounds;                                                  //Divide the gyro_y_cal variable by 2000 to get the avarage offset
+  gyro_z_cal /= cal_rounds;                                                  //Divide the gyro_z_cal variable by 2000 to get the avarage offset
 
-
-
-
-
-
-
-
-
-
-
+  still_length_acc /= cal_rounds;
+}
 

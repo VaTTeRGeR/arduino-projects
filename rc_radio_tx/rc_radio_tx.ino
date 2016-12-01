@@ -77,7 +77,6 @@ void loop() {
   unsigned long t_update = millis();
     
   if(radio_initialized){
-    
     if(radio.receiveDone()) {
       if(radio.DATALEN == sizeof(packetRSSI)) {
         packetRSSI = *(PacketRSSI*)radio.DATA;
