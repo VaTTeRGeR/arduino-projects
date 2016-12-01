@@ -53,12 +53,20 @@ boolean set_gyro_angles;
 
 void setup() {
   pinMode(13, OUTPUT);
-  digitalWrite(13, LOW);
+
+  for(int i = 0; i<5;i++){
+    digitalWrite(13, HIGH);
+    delay(50);
+    digitalWrite(13, LOW);
+    delay(50);
+  }
+  
 
   setup_mpu_6050();
-  calibrate_mpu_6050();
   
-  setupRadio();
+  calibrate_mpu_6050();
+
+  //setupRadio();
 
   setupPWM();
 }
@@ -66,7 +74,7 @@ void setup() {
 void loop() {
   updateMPU();
   
-  updateRadio();
+  //updateRadio();
   
   while(micros() - loop_timer < 1000000/SAMPLERATE);
   loop_timer = micros();
@@ -157,11 +165,11 @@ void updateMPU(){
     set_gyro_angles = true;                                            //Set the IMU started flag
   } else if((((float)still_length_acc) * 1.025) > ((float)acc_total_vector)
          && (((float)still_length_acc) * 0.975) < ((float)acc_total_vector)) {
-    angle_pitch = angle_pitch * 0.99 + angle_pitch_acc * 0.01;       //Correct the drift of the gyro pitch angle with the accelerometer pitch angle
-    angle_roll = angle_roll * 0.99 + angle_roll_acc * 0.01;          //Correct the drift of the gyro roll angle with the accelerometer roll angle
-    digitalWrite(13, HIGH);                                               //All done, turn the LED off
+    angle_pitch = angle_pitch * 0.98 + angle_pitch_acc * 0.02;       //Correct the drift of the gyro pitch angle with the accelerometer pitch angle
+    angle_roll = angle_roll * 0.98 + angle_roll_acc * 0.02;          //Correct the drift of the gyro roll angle with the accelerometer roll angle
+    //digitalWrite(13, HIGH);                                               //All done, turn the LED off
   } else {
-    digitalWrite(13, LOW);                                               //All done, turn the LED off
+    //digitalWrite(13, LOW);                                               //All done, turn the LED off
   }
 
   
@@ -169,7 +177,16 @@ void updateMPU(){
   angle_pitch_output = angle_pitch_output * 0.75 + angle_pitch * 0.25;   //Take 90% of the output pitch value and add 10% of the raw pitch value
   angle_roll_output = angle_roll_output * 0.75 + angle_roll * 0.25;      //Take 90% of the output roll value and add 10% of the raw roll value
 
-  analogWrite(13, map((int)abs(angle_pitch_output/2+angle_roll_output/2), 0, 90, 1, 255));
+  if(angle_pitch_output > 10.0 || angle_pitch_output < -10.0 || angle_roll_output > 10.0 || angle_roll_output < -10.0)
+    digitalWrite(13, HIGH);
+  else
+    digitalWrite(13, LOW);
+
+
+  //int throttle = (int)(angle_pitch_output/2.0);
+  //throttle = min(25, throttle);
+  //throttle = max(0, throttle);
+  //setThrottle(throttle);
 }
 
 void read_mpu_6050_data(){                                             //Subroutine for reading the raw gyro and accelerometer data
@@ -181,13 +198,13 @@ void read_mpu_6050_data(){                                             //Subrout
   
   //READS IN THIS ORDER: AX, AY, AZ | GX, GY, GZ
   
-  acc_x = Wire.read()<<8|Wire.read();                                  //Add the low and high byte to the acc_x variable
-  acc_y = Wire.read()<<8|Wire.read();                                  //Add the low and high byte to the acc_y variable
-  acc_z = Wire.read()<<8|Wire.read();                                  //Add the low and high byte to the acc_z variable
+  acc_z = (Wire.read()<<8|Wire.read());                                  //Add the low and high byte to the acc_x variable
+  acc_y = (Wire.read()<<8|Wire.read());                                  //Add the low and high byte to the acc_y variable
+  acc_x = -(Wire.read()<<8|Wire.read());                                  //Add the low and high byte to the acc_z variable
   temperature = Wire.read()<<8|Wire.read();                            //Add the low and high byte to the temperature variable
-  gyro_x = Wire.read()<<8|Wire.read();                                 //Add the low and high byte to the gyro_x variable
-  gyro_y = Wire.read()<<8|Wire.read();                                 //Add the low and high byte to the gyro_y variable
-  gyro_z = Wire.read()<<8|Wire.read();                                 //Add the low and high byte to the gyro_z variable
+  gyro_z = (Wire.read()<<8|Wire.read());                                 //Add the low and high byte to the gyro_x variable
+  gyro_y = (Wire.read()<<8|Wire.read());                                 //Add the low and high byte to the gyro_y variable
+  gyro_x = -(Wire.read()<<8|Wire.read());                                 //Add the low and high byte to the gyro_z variable
 
 }
 
@@ -211,7 +228,7 @@ void setup_mpu_6050(){
 }
 
 void calibrate_mpu_6050(){
-  int cal_rounds = 500;
+  int cal_rounds = 100;
   for (int cal_int = 0; cal_int < cal_rounds ; cal_int ++){                  //Run this code 2000 times
     read_mpu_6050_data();                                              //Read the raw acc and gyro data from the MPU-6050
     gyro_x_cal += gyro_x;                                              //Add the gyro x-axis offset to the gyro_x_cal variable
