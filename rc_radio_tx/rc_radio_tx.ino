@@ -34,7 +34,7 @@ unsigned long                 t_last_update = 0; // time needed to complete the 
 
 /* --- */
 
-byte contrast = 38;
+byte contrast = 35;
 
 void setup() {
 
@@ -137,11 +137,11 @@ void loop() {
   int pxl = ((getXLeft()*41)/1023);
   int pyl = (((1023L - getYLeft())*47)/1023);
 
-  //int pxr = ((getXRight()*41)/1023);
-  //int pyr = (((1023 - getYRight())*47)/1023);
+  int pxr = ((getXRight()*41)/1023);
+  int pyr = (((1023 - getYRight())*47)/1023);
 
-  int pxr = ((getJX()*41)/1023);
-  int pyr = (((1023 - getJY())*47)/1023);
+  //int pxr = ((getJX()*41)/1023);
+  //int pyr = (((1023 - getJY())*47)/1023);
 
   pcd.drawFastVLine(pxl, 0, 48, BLACK);
   pcd.drawFastHLine(0, pyl, 42, BLACK);
@@ -159,12 +159,14 @@ void loop() {
   pcd.println(contrast);
 
   if(getJY() > 768)
-    pcd.setContrast(contrast++);
+    contrast++;
   else if(getJY() < 256)
-    pcd.setContrast(contrast--);
+    contrast--;
 
-  contrast = min(127, contrast);
-  contrast = max(0, contrast);
+  contrast = min(40, contrast);
+  contrast = max(30, contrast);
+
+  pcd.setContrast(contrast);
   
   pcd.display();
 

@@ -53,22 +53,22 @@ boolean set_gyro_angles;
 
 void setup() {
   pinMode(13, OUTPUT);
+  digitalWrite(13, HIGH);
 
+  setupPWM();
+  
+  setup_mpu_6050();
+  
+  calibrate_mpu_6050();
+
+  //setupRadio();
+  
   for(int i = 0; i<5;i++){
     digitalWrite(13, HIGH);
     delay(50);
     digitalWrite(13, LOW);
     delay(50);
   }
-  
-
-  setup_mpu_6050();
-  
-  calibrate_mpu_6050();
-
-  //setupRadio();
-
-  setupPWM();
 }
 
 void loop() {
@@ -122,6 +122,10 @@ void setupPWM(){
 
 void setThrottle(int percent){
   pwm.setPWM(THROTTLE_HEADER, 0, mapAngleLogical(map(percent, 0, 100, -45, 45)));
+}
+
+void setAngle(byte pin, int angle){
+  pwm.setPWM(pin, 0, mapAngleLogical(angle));
 }
 
 int mapAngleLogical(int angle){
@@ -182,6 +186,7 @@ void updateMPU(){
   else
     digitalWrite(13, LOW);
 
+  setAngle(15, angle_roll_output);
 
   //int throttle = (int)(angle_pitch_output/2.0);
   //throttle = min(25, throttle);
@@ -228,7 +233,7 @@ void setup_mpu_6050(){
 }
 
 void calibrate_mpu_6050(){
-  int cal_rounds = 100;
+  int cal_rounds = 500;
   for (int cal_int = 0; cal_int < cal_rounds ; cal_int ++){                  //Run this code 2000 times
     read_mpu_6050_data();                                              //Read the raw acc and gyro data from the MPU-6050
     gyro_x_cal += gyro_x;                                              //Add the gyro x-axis offset to the gyro_x_cal variable
