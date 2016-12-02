@@ -187,6 +187,7 @@ void updateMPU(){
     digitalWrite(13, LOW);
 
   setAngle(15, angle_roll_output);
+  setAngle(14, angle_pitch_output);
 
   //int throttle = (int)(angle_pitch_output/2.0);
   //throttle = min(25, throttle);
