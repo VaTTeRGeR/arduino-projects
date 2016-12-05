@@ -1,3 +1,7 @@
+#include <avr/wdt.h>
+
+/* --- */
+
 #include <SPI.h>
 #include <RFM69.h>
 #include <RFM69registers.h>
@@ -52,8 +56,17 @@ boolean set_gyro_angles;
 /* - SETUP - */
 
 void setup() {
+  wdt_enable(WDTO_1S);
+  
   pinMode(13, OUTPUT);
   digitalWrite(13, HIGH);
+
+  for(int i = 0; i<10;i++){
+    digitalWrite(13, HIGH);
+    delay(25);
+    digitalWrite(13, LOW);
+    delay(25);
+  }
 
   setupPWM();
   
@@ -61,23 +74,21 @@ void setup() {
   
   calibrate_mpu_6050();
 
-  //setupRadio();
+  setupRadio();
   
-  for(int i = 0; i<5;i++){
-    digitalWrite(13, HIGH);
-    delay(50);
-    digitalWrite(13, LOW);
-    delay(50);
-  }
+  wdt_reset();
+  wdt_enable(WDTO_15MS);
 }
 
 void loop() {
   updateMPU();
   
-  //updateRadio();
+  updateRadio();
   
   while(micros() - loop_timer < 1000000/SAMPLERATE);
   loop_timer = micros();
+
+  wdt_reset();
 }
 
 /* --- */
@@ -144,7 +155,8 @@ void updateMPU(){
   gyro_y -= gyro_y_cal;                                                //Subtract the offset calibration value from the raw gyro_y value
   gyro_z -= gyro_z_cal;                                                //Subtract the offset calibration value from the raw gyro_z value
 
-  float gyroToAngleChange = 1.0/((float)SAMPLERATE)/65.5;
+  //float gyroToAngleChange = 1.0/((float)SAMPLERATE)/65.5;            // for 500 deg/s
+  float gyroToAngleChange = 1.0/((float)SAMPLERATE)/16.375;            // for 2000 deg/s
   //Gyro angle calculations
   angle_pitch += ((float)gyro_x) * gyroToAngleChange;                  //Calculate the traveled pitch angle and add this to the angle_pitch variable
   angle_roll += ((float)gyro_y) * gyroToAngleChange;                   //Calculate the traveled roll angle and add this to the angle_roll variable
@@ -226,10 +238,10 @@ void setup_mpu_6050(){
   Wire.write(0x1C);                                                    //Send the requested starting register
   Wire.write(0x10);                                                    //Set the requested starting register
   Wire.endTransmission();                                              //End the transmission
-  //Configure the gyro (500dps full scale)
+  //Configure the gyro (2000dps full scale)
   Wire.beginTransmission(0x68);                                        //Start communicating with the MPU-6050
   Wire.write(0x1B);                                                    //Send the requested starting register
-  Wire.write(0x08);                                                    //Set the requested starting register
+  Wire.write(0x18);                                                    //Set the requested starting register
   Wire.endTransmission();                                              //End the transmission
 }
 
@@ -244,6 +256,7 @@ void calibrate_mpu_6050(){
     still_length_acc += sqrt((acc_x*acc_x)+(acc_y*acc_y)+(acc_z*acc_z));
     
     delay(2);                                                          //Delay 3us to simulate the 250Hz program loop
+    wdt_reset();
   }
   
   gyro_x_cal /= cal_rounds;                                                  //Divide the gyro_x_cal variable by 2000 to get the avarage offset
