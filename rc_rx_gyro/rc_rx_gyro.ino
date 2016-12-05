@@ -51,7 +51,7 @@ float   angle_pitch_output, angle_roll_output;
 
 int     temperature;
 long    loop_timer;
-boolean set_gyro_angles;
+boolean gyro_angles_set;
 
 /* - SETUP - */
 
@@ -157,54 +157,42 @@ void updateMPU(){
 
   //float gyroToAngleChange = 1.0/((float)SAMPLERATE)/65.5;            // for 500 deg/s
   float gyroToAngleChange = 1.0/((float)SAMPLERATE)/16.375;            // for 2000 deg/s
+
   //Gyro angle calculations
   angle_pitch += ((float)gyro_x) * gyroToAngleChange;                  //Calculate the traveled pitch angle and add this to the angle_pitch variable
   angle_roll += ((float)gyro_y) * gyroToAngleChange;                   //Calculate the traveled roll angle and add this to the angle_roll variable
   
-  float gyrozScl = gyroToAngleChange * (PI / 180.0);                               //The Arduino sin function is in radians
-  angle_pitch += angle_roll * sin(gyro_z * gyrozScl);               //If the IMU has yawed transfer the roll angle to the pitch angel
-  angle_roll -= angle_pitch * sin(gyro_z * gyrozScl);               //If the IMU has yawed transfer the pitch angle to the roll angel
+  float gyrozScl = gyroToAngleChange * (PI / 180.0);                   //The Arduino sin function is in radians
+  angle_pitch += angle_roll * sin(gyro_z * gyrozScl);                  //If the IMU has yawed transfer the roll angle to the pitch angel
+  angle_roll -= angle_pitch * sin(gyro_z * gyrozScl);                  //If the IMU has yawed transfer the pitch angle to the roll angel
   
   //Accelerometer angle calculations
-  acc_total_vector = sqrt((acc_x*acc_x)+(acc_y*acc_y)+(acc_z*acc_z));  //Calculate the total accelerometer vector
-  //57.296 = 1 / (3.142 / 180) The Arduino asin function is in radians
-  angle_pitch_acc = asin((float)acc_y/acc_total_vector)* 57.296;       //Calculate the pitch angle
-  angle_roll_acc = asin((float)acc_x/acc_total_vector)* -57.296;       //Calculate the roll angle
+  acc_total_vector = sqrt( (acc_x*acc_x) + (acc_y*acc_y) + (acc_z*acc_z) ); //Calculate the total accelerometer vector
+  //57.296 = 1.0 / (3.142 / 180.0) The Arduino asin function is in radians
+  angle_pitch_acc = asin((float)acc_y / acc_total_vector)*  57.296;    //Calculate the pitch angle
+  angle_roll_acc = asin((float)acc_x / acc_total_vector) * -57.296;    //Calculate the roll angle
   
-  //Place the MPU-6050 spirit level and note the values in the following two lines for calibration
-  angle_pitch_acc -= 0.0;                                              //Accelerometer calibration value for pitch
-  angle_roll_acc -= 0.0;                                               //Accelerometer calibration value for roll
+  //Offset
+  //angle_pitch_acc -= 0.0;                                              //Accelerometer calibration value for pitch
+  //angle_roll_acc -= 0.0;                                               //Accelerometer calibration value for roll
 
-  if(!set_gyro_angles){                                                //If the IMU is not already started
+  if(!gyro_angles_set){                                                //If the IMU is not already started
     angle_pitch = angle_pitch_acc;                                     //Set the gyro pitch angle equal to the accelerometer pitch angle 
     angle_roll = angle_roll_acc;                                       //Set the gyro roll angle equal to the accelerometer roll angle 
-    set_gyro_angles = true;                                            //Set the IMU started flag
+    gyro_angles_set = true;                                            //Set the IMU started flag
   } else if((((float)still_length_acc) * 1.025) > ((float)acc_total_vector)
          && (((float)still_length_acc) * 0.975) < ((float)acc_total_vector)) {
     angle_pitch = angle_pitch * 0.98 + angle_pitch_acc * 0.02;       //Correct the drift of the gyro pitch angle with the accelerometer pitch angle
     angle_roll = angle_roll * 0.98 + angle_roll_acc * 0.02;          //Correct the drift of the gyro roll angle with the accelerometer roll angle
-    //digitalWrite(13, HIGH);                                               //All done, turn the LED off
-  } else {
-    //digitalWrite(13, LOW);                                               //All done, turn the LED off
   }
 
   
   //To dampen the pitch and roll angles a complementary filter is used
-  angle_pitch_output = angle_pitch_output * 0.75 + angle_pitch * 0.25;   //Take 90% of the output pitch value and add 10% of the raw pitch value
-  angle_roll_output = angle_roll_output * 0.75 + angle_roll * 0.25;      //Take 90% of the output roll value and add 10% of the raw roll value
-
-  if(angle_pitch_output > 10.0 || angle_pitch_output < -10.0 || angle_roll_output > 10.0 || angle_roll_output < -10.0)
-    digitalWrite(13, HIGH);
-  else
-    digitalWrite(13, LOW);
+  angle_pitch_output = angle_pitch_output * 0.75 + angle_pitch * 0.25;   //Take 75% of the output pitch value and add 25% of the raw pitch value
+  angle_roll_output = angle_roll_output * 0.75 + angle_roll * 0.25;      //Take 75% of the output roll value and add 25% of the raw roll value
 
   setAngle(15, angle_roll_output);
   setAngle(14, angle_pitch_output);
-
-  //int throttle = (int)(angle_pitch_output/2.0);
-  //throttle = min(25, throttle);
-  //throttle = max(0, throttle);
-  //setThrottle(throttle);
 }
 
 void read_mpu_6050_data(){                                             //Subroutine for reading the raw gyro and accelerometer data
