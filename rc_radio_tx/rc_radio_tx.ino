@@ -34,7 +34,7 @@ unsigned long                 t_last_update = 0; // time needed to complete the 
 
 /* --- */
 
-byte contrast = 35;
+byte contrast = 40;
 
 void setup() {
 
@@ -163,8 +163,8 @@ void loop() {
   else if(getJY() < 256)
     contrast--;
 
-  contrast = min(40, contrast);
-  contrast = max(30, contrast);
+  contrast = min(45, contrast);
+  contrast = max(35, contrast);
 
   pcd.setContrast(contrast);
   
@@ -179,5 +179,5 @@ void loop() {
 
 void wait(long t_wait) {
   long t_now = millis();
-  while(millis() < t_now + t_wait){}
+  while(millis() < t_now + t_wait);
 }

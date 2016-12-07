@@ -78,6 +78,8 @@ void setup() {
   
   wdt_reset();
   wdt_enable(WDTO_15MS);
+  
+  loop_timer = micros();
 }
 
 void loop() {
@@ -234,16 +236,20 @@ void setup_mpu_6050(){
 }
 
 void calibrate_mpu_6050(){
-  int cal_rounds = 500;
+  
+  int cal_rounds = 100;
+  
   for (int cal_int = 0; cal_int < cal_rounds ; cal_int ++){                  //Run this code 2000 times
     read_mpu_6050_data();                                              //Read the raw acc and gyro data from the MPU-6050
+    
     gyro_x_cal += gyro_x;                                              //Add the gyro x-axis offset to the gyro_x_cal variable
     gyro_y_cal += gyro_y;                                              //Add the gyro y-axis offset to the gyro_y_cal variable
     gyro_z_cal += gyro_z;                                              //Add the gyro z-axis offset to the gyro_z_cal variable
 
     still_length_acc += sqrt((acc_x*acc_x)+(acc_y*acc_y)+(acc_z*acc_z));
+
+    delay(5);
     
-    delay(2);                                                          //Delay 3us to simulate the 250Hz program loop
     wdt_reset();
   }
   
@@ -252,8 +258,6 @@ void calibrate_mpu_6050(){
   gyro_z_cal /= cal_rounds;                                                  //Divide the gyro_z_cal variable by 2000 to get the avarage offset
 
   still_length_acc /= cal_rounds;
-  
-  loop_timer = micros();                                               //Reset the loop timer
 }
 
 /* --- */
