@@ -35,6 +35,7 @@ int         count       = 0;
 
 /* --- */
 
+
 long    gyro_x_cal, gyro_y_cal, gyro_z_cal;
 
 int     gyro_x, gyro_y, gyro_z;
