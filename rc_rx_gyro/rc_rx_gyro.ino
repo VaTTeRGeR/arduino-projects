@@ -131,21 +131,19 @@ void updateRadio(){
 void setupPWM(){
   pwm.begin();
   pwm.setPWMFreq(SERVOFREQ);
-  setThrottle(0);
+  setThrottle(0, 0);
 }
 
-void setThrottle(int percent){
-  pwm.setPWM(THROTTLE_HEADER, 0, mapAngleLogical(map(percent, 0, 100, -45, 45)));
+void setThrottle(byte pin, unsigned char percent){
+  percent = min(percent, 100);
+  percent = max(percent, 0);
+  pwm.setPWM(pin, 0, map(percent, 0, 100, ESCMIN, ESCMAX));
 }
 
-void setAngle(byte pin, int angle){
-  pwm.setPWM(pin, 0, mapAngleLogical(angle));
-}
-
-int mapAngleLogical(int angle){
+void setAngle(byte pin, char angle){
   angle = min(angle, 45);
   angle = max(angle, -45);
-  return map(angle, -45, 45, SERVOMIN, SERVOMAX);
+  pwm.setPWM(pin, 0, map(angle, -45, 45, SERVOMIN, SERVOMAX));
 }
 
 /* --- */
@@ -194,8 +192,11 @@ void updateMPU(){
   angle_pitch_output = angle_pitch_output * 0.75 + angle_pitch * 0.25;   //Take 75% of the output pitch value and add 25% of the raw pitch value
   angle_roll_output = angle_roll_output * 0.75 + angle_roll * 0.25;      //Take 75% of the output roll value and add 25% of the raw roll value
 
-  setAngle(15, angle_roll_output);
-  setAngle(14, angle_pitch_output);
+  setAngle(15, angle_roll_output/2);
+  setAngle(11, angle_pitch_output/2);
+  setAngle(7, 45);
+  setAngle(6, 0);
+  setAngle(5, -45);
 }
 
 void read_mpu_6050_data(){                                             //Subroutine for reading the raw gyro and accelerometer data
