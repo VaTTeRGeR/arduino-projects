@@ -183,15 +183,18 @@ void updateMPU(){
     gyro_angles_set = true;                                            //Set the IMU started flag
   } else if((((float)still_length_acc) * 1.025) > ((float)acc_total_vector)
          && (((float)still_length_acc) * 0.975) < ((float)acc_total_vector)) {
-    angle_pitch = angle_pitch * 0.98 + angle_pitch_acc * 0.02;       //Correct the drift of the gyro pitch angle with the accelerometer pitch angle
-    angle_roll = angle_roll * 0.98 + angle_roll_acc * 0.02;          //Correct the drift of the gyro roll angle with the accelerometer roll angle
+    //angle_pitch = angle_pitch * 0.98 + angle_pitch_acc * 0.02;       //Correct the drift of the gyro pitch angle with the accelerometer pitch angle
+    //angle_roll = angle_roll * 0.98 + angle_roll_acc * 0.02;          //Correct the drift of the gyro roll angle with the accelerometer roll angle
   }
 
   
   //To dampen the pitch and roll angles a complementary filter is used
-  angle_pitch_output = angle_pitch_output * 0.75 + angle_pitch * 0.25;   //Take 75% of the output pitch value and add 25% of the raw pitch value
-  angle_roll_output = angle_roll_output * 0.75 + angle_roll * 0.25;      //Take 75% of the output roll value and add 25% of the raw roll value
+  //angle_pitch_output = angle_pitch_output * 0.75 + angle_pitch * 0.25;   //Take 75% of the output pitch value and add 25% of the raw pitch value
+  //angle_roll_output = angle_roll_output * 0.75 + angle_roll * 0.25;      //Take 75% of the output roll value and add 25% of the raw roll value
 
+  angle_pitch_output = angle_pitch;
+  angle_roll_output = angle_roll;
+  
   setAngle(15, angle_roll_output/2);
   setAngle(11, angle_pitch_output/2);
   setAngle(7, 45);
