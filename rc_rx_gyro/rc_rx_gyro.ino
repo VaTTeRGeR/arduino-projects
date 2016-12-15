@@ -183,8 +183,8 @@ void updateMPU(){
     gyro_angles_set = true;                                            //Set the IMU started flag
   } else if((((float)still_length_acc) * 1.025) > ((float)acc_total_vector)
          && (((float)still_length_acc) * 0.975) < ((float)acc_total_vector)) {
-    //angle_pitch = angle_pitch * 0.98 + angle_pitch_acc * 0.02;       //Correct the drift of the gyro pitch angle with the accelerometer pitch angle
-    //angle_roll = angle_roll * 0.98 + angle_roll_acc * 0.02;          //Correct the drift of the gyro roll angle with the accelerometer roll angle
+    angle_pitch = angle_pitch * 0.98 + angle_pitch_acc * 0.02;       //Correct the drift of the gyro pitch angle with the accelerometer pitch angle
+    angle_roll = angle_roll * 0.98 + angle_roll_acc * 0.02;          //Correct the drift of the gyro roll angle with the accelerometer roll angle
   }
 
   
