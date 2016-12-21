@@ -1,0 +1,2 @@
+VCC MISO INT0 SS        
+GND SCK  MOSI XX

@@ -30,7 +30,6 @@ PacketRSSI  packetRSSI;
 Packet      packet;
 
 boolean     radio_ready = false;
-int         count       = 0;
 
 
 /* --- */
@@ -69,11 +68,11 @@ void setup() {
     delay(25);
   }
 
-  setupPWM();
+  //setupPWM();
   
-  setup_mpu_6050();
+  //setup_mpu_6050();
   
-  calibrate_mpu_6050();
+  //calibrate_mpu_6050();
 
   setupRadio();
   
@@ -84,7 +83,7 @@ void setup() {
 }
 
 void loop() {
-  updateMPU();
+  //updateMPU();
   
   updateRadio();
   
@@ -101,8 +100,7 @@ void setupRadio(){
     if(radio.readReg(REG_SYNCVALUE2) == NETWORK_RFM69) {
       radio_ready = true;
     
-      radio.setPowerLevel(28);
-      radio.setHighPower();
+      radio.setPowerLevel(15);
   
       radio.writeReg(REG_BITRATEMSB, RF_BITRATEMSB_9600);
       radio.writeReg(REG_BITRATELSB, RF_BITRATELSB_9600);
@@ -113,14 +111,10 @@ void setupRadio(){
 void updateRadio(){
   if(radio_ready && radio.receiveDone()) {
     if(radio.DATALEN == sizeof(Packet)) {
-      
       packet = *(Packet*)radio.DATA;
-      if(packet.flags == 0xAA) {
-        count = (count+1)%5;
-        if(count == 0) {
-          packetRSSI.rssi = radio.RSSI;
-          radio.send(TX_RFM69, (const void*)(&packetRSSI), sizeof(packetRSSI));
-        }
+      if(packet.flags == 0xAB) {
+        packetRSSI.rssi = radio.RSSI;
+        radio.send(TX_RFM69, (const void*)(&packetRSSI), sizeof(packetRSSI));
       }
     }
   }

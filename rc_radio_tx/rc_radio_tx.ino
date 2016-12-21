@@ -32,9 +32,11 @@ unsigned long                 t_last_rssi = 0; // timestamp of last rssi packet 
 
 unsigned long                 t_last_update = 0; // time needed to complete the previous loop
 
+int                           counter_rssi = 0;
+
 /* --- */
 
-byte contrast = 40;
+byte contrast = 42;
 
 void setup() {
 
@@ -47,24 +49,24 @@ void setup() {
 
   digitalWrite(LED_G, LOW);
   digitalWrite(LED_R, HIGH);
-
+  
   
   pcd.begin();
   
   pcd.setContrast(contrast);
-
+  
   pcd.display();
   
   delay(500);
   
   pcd.clearDisplay();
-
-  if(false /*radio.initialize(RF69_433MHZ, TX_RFM69, NETWORK_RFM69)*/) {
+  
+  if(radio.initialize(RF69_433MHZ, TX_RFM69, NETWORK_RFM69)) {
     if(radio.readReg(REG_SYNCVALUE2) == NETWORK_RFM69) {
       radio_initialized = true;
     
       radio.setHighPower();
-      radio.setPowerLevel(18);
+      radio.setPowerLevel(28);
   
       radio.writeReg(REG_BITRATEMSB, RF_BITRATEMSB_9600);
       radio.writeReg(REG_BITRATELSB, RF_BITRATELSB_9600);
@@ -98,7 +100,14 @@ void loop() {
     packet.y_left = getYLeft() >> 2;
     packet.x_right = getXRight() >> 2;
     packet.y_right = getYRight() >> 2;
-    packet.flags = 0xAA;
+
+    if(counter_rssi <= 0) {
+      packet.flags = 0xAB;
+      counter_rssi = 10;
+    } else {
+      packet.flags = 0xAA;
+      counter_rssi--;
+    }
     
     radio.send(RX_RFM69, (const void*)(&packet), sizeof(packet));
 
@@ -122,53 +131,64 @@ void loop() {
     digitalWrite(LED_R, HIGH);
     digitalWrite(LED_G, LOW);
   }
+
+  if(counter_rssi != 10) {
+    pcd.clearDisplay();
+    
+    pcd.drawFastVLine(41, 0, 48, BLACK);
+    pcd.drawFastVLine(42, 0, 48, BLACK);
+    
+    pcd.drawRect(0, 0, 84 ,48, BLACK);
   
-  pcd.clearDisplay();
+    pcd.setTextSize(1);
+    pcd.setCursor(2,2);
+    pcd.println(radio_initialized ? "ROK" : "ERR");
   
-  pcd.drawFastVLine(41, 0, 48, BLACK);
-  pcd.drawFastVLine(42, 0, 48, BLACK);
+    int pxl = ((getXLeft()*41)/1023);
+    int pyl = (((1023L - getYLeft())*47)/1023);
   
-  pcd.drawRect(0, 0, 84 ,48, BLACK);
-
-  pcd.setTextSize(1);
-  pcd.setCursor(2,2);
-  pcd.println(radio_initialized ? "ROK" : "ERR");
-
-  int pxl = ((getXLeft()*41)/1023);
-  int pyl = (((1023L - getYLeft())*47)/1023);
-
-  int pxr = ((getXRight()*41)/1023);
-  int pyr = (((1023 - getYRight())*47)/1023);
-
-  //int pxr = ((getJX()*41)/1023);
-  //int pyr = (((1023 - getJY())*47)/1023);
-
-  pcd.drawFastVLine(pxl, 0, 48, BLACK);
-  pcd.drawFastHLine(0, pyl, 42, BLACK);
-
-  pcd.drawRect(pxl-2, pyl-2, 5, 5, BLACK);
+    int pxr = ((getXRight()*41)/1023);
+    int pyr = (((1023 - getYRight())*47)/1023);
   
-  if(!getJB()) {
-    pcd.drawFastVLine(pxr + 42, 0, 48, BLACK);
-    pcd.drawFastHLine(42, pyr, 42, BLACK);
-
-    pcd.drawRect(pxr-2 + 42, pyr-2, 5, 5, BLACK);
+    //int pxr = ((getJX()*41)/1023);
+    //int pyr = (((1023 - getJY())*47)/1023);
+  
+    pcd.drawFastVLine(pxl, 0, 48, BLACK);
+    pcd.drawFastHLine(0, pyl, 42, BLACK);
+  
+    pcd.drawRect(pxl-2, pyl-2, 5, 5, BLACK);
+    
+    if(!getJB()) {
+      pcd.drawFastVLine(pxr + 42, 0, 48, BLACK);
+      pcd.drawFastHLine(42, pyr, 42, BLACK);
+  
+      pcd.drawRect(pxr-2 + 42, pyr-2, 5, 5, BLACK);
+    }
+    
+    pcd.println(t_last_update);
+    pcd.println(contrast);
+    pcd.println(packetRSSI.rssi);
+    pcd.println(millis()-t_last_rssi);
+  
+  
+  
+    if(getJY() > 768)
+      contrast++;
+    else if(getJY() < 256)
+      contrast--;
+  
+    contrast = min(45, contrast);
+    contrast = max(35, contrast);
+  
+    noInterrupts();
+    pcd.setContrast(contrast);
+    pcd.display();
+    interrupts();
+    
+  } else {
+    radio.receiveDone();
   }
-  
-  pcd.println(t_last_update);
-  pcd.println(contrast);
 
-  if(getJY() > 768)
-    contrast++;
-  else if(getJY() < 256)
-    contrast--;
-
-  contrast = min(45, contrast);
-  contrast = max(35, contrast);
-
-  pcd.setContrast(contrast);
-  
-  pcd.display();
 
   unsigned long t_used = t_last_update = millis() - t_update;
   
