@@ -1,4 +1,4 @@
-#include <avr/wdt.h>
+ //#include <avr/wdt.h>
 
 /* --- */
 
@@ -56,7 +56,7 @@ boolean gyro_angles_set;
 /* - SETUP - */
 
 void setup() {
-  wdt_enable(WDTO_1S);
+  //wdt_enable(WDTO_1S);
   
   pinMode(13, OUTPUT);
   digitalWrite(13, HIGH);
@@ -76,8 +76,8 @@ void setup() {
 
   setupRadio();
   
-  wdt_reset();
-  wdt_enable(WDTO_15MS);
+  //wdt_reset();
+  //wdt_enable(WDTO_15MS);
   
   loop_timer = micros();
 }
@@ -90,7 +90,7 @@ void loop() {
   while(micros() - loop_timer < 1000000/SAMPLERATE);
   loop_timer = micros();
 
-  wdt_reset();
+  //wdt_reset();
 }
 
 /* --- */
@@ -100,7 +100,7 @@ void setupRadio(){
     if(radio.readReg(REG_SYNCVALUE2) == NETWORK_RFM69) {
       radio_ready = true;
     
-      radio.setPowerLevel(15);
+      radio.setPowerLevel(0);
   
       radio.writeReg(REG_BITRATEMSB, RF_BITRATEMSB_9600);
       radio.writeReg(REG_BITRATELSB, RF_BITRATELSB_9600);
@@ -115,6 +115,7 @@ void updateRadio(){
       if(packet.flags == 0xAB) {
         packetRSSI.rssi = radio.RSSI;
         radio.send(TX_RFM69, (const void*)(&packetRSSI), sizeof(packetRSSI));
+      } else {
       }
     }
   }
@@ -249,7 +250,7 @@ void calibrate_mpu_6050(){
 
     delay(5);
     
-    wdt_reset();
+    //wdt_reset();
   }
   
   gyro_x_cal /= cal_rounds;                                                  //Divide the gyro_x_cal variable by 2000 to get the avarage offset

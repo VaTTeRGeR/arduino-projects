@@ -66,7 +66,7 @@ void setup() {
       radio_initialized = true;
     
       radio.setHighPower();
-      radio.setPowerLevel(28);
+      radio.setPowerLevel(0);
   
       radio.writeReg(REG_BITRATEMSB, RF_BITRATEMSB_9600);
       radio.writeReg(REG_BITRATELSB, RF_BITRATELSB_9600);
@@ -114,25 +114,12 @@ void loop() {
     digitalWrite(LED_G, LOW);
 
     radio.receiveDone();
-    
-    if(millis() - t_last_rssi >= SIGNAL_WARN_TIME) {
-      t_last_rssi = millis() - SIGNAL_WARN_TIME;
-      digitalWrite(LED_R, HIGH);
-      wait(10);
-      digitalWrite(LED_R, LOW);
-      wait(10);
-      digitalWrite(LED_R, HIGH);
-      wait(10);
-      digitalWrite(LED_R, LOW);
-      wait(10);
-    }
-    
   } else {
     digitalWrite(LED_R, HIGH);
     digitalWrite(LED_G, LOW);
   }
 
-  if(counter_rssi != 10) {
+  if(counter_rssi < 10) {
     pcd.clearDisplay();
     
     pcd.drawFastVLine(41, 0, 48, BLACK);
@@ -142,7 +129,16 @@ void loop() {
   
     pcd.setTextSize(1);
     pcd.setCursor(2,2);
-    pcd.println(radio_initialized ? "ROK" : "ERR");
+
+    if(radio_initialized) {
+      if(millis() - t_last_rssi >= SIGNAL_WARN_TIME) {
+        pcd.println("[ ]");
+      } else {
+        pcd.println("[+]");
+      }
+    } else {
+      pcd.println("");
+    }
   
     int pxl = ((getXLeft()*41)/1023);
     int pyl = (((1023L - getYLeft())*47)/1023);
@@ -166,9 +162,8 @@ void loop() {
     }
     
     pcd.println(t_last_update);
-    pcd.println(contrast);
     pcd.println(packetRSSI.rssi);
-    pcd.println(millis()-t_last_rssi);
+    pcd.println(((millis()-t_last_rssi)>>2)<<2);
   
   
   
