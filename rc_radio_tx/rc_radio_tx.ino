@@ -66,10 +66,10 @@ void setup() {
       radio_initialized = true;
     
       radio.setHighPower();
-      radio.setPowerLevel(0);
+      radio.setPowerLevel(17);
   
-      radio.writeReg(REG_BITRATEMSB, RF_BITRATEMSB_9600);
-      radio.writeReg(REG_BITRATELSB, RF_BITRATELSB_9600);
+      radio.writeReg(REG_BITRATEMSB, RF_BITRATEMSB_19200);
+      radio.writeReg(REG_BITRATELSB, RF_BITRATELSB_19200);
     }
   }
 }
@@ -103,7 +103,7 @@ void loop() {
 
     if(counter_rssi <= 0) {
       packet.flags = 0xAB;
-      counter_rssi = 10;
+      counter_rssi = SIGNAL_CHECK_SPACING;
     } else {
       packet.flags = 0xAA;
       counter_rssi--;
@@ -119,7 +119,7 @@ void loop() {
     digitalWrite(LED_G, LOW);
   }
 
-  if(counter_rssi < 10) {
+  if(counter_rssi != SIGNAL_CHECK_SPACING) {
     pcd.clearDisplay();
     
     pcd.drawFastVLine(41, 0, 48, BLACK);
@@ -131,7 +131,7 @@ void loop() {
     pcd.setCursor(2,2);
 
     if(radio_initialized) {
-      if(millis() - t_last_rssi >= SIGNAL_WARN_TIME) {
+      if(millis() - t_last_rssi >= (((SIGNAL_CHECK_SPACING) * 3) >> 1) * t_last_update) {
         pcd.println("[ ]");
       } else {
         pcd.println("[+]");

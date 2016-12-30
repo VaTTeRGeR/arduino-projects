@@ -17,6 +17,7 @@
 /* --- */
 
 #include "mpu6050_constants.h"
+#include "quaternion.h"
 
 /* --- */
 
@@ -33,6 +34,9 @@ boolean     radio_ready = false;
 
 
 /* --- */
+
+unsigned long   arm_counter;
+boolean         armed;
 
 
 long    gyro_x_cal, gyro_y_cal, gyro_z_cal;
@@ -68,11 +72,11 @@ void setup() {
     delay(25);
   }
 
-  //setupPWM();
+  setupPWM();
   
-  //setup_mpu_6050();
+  setup_mpu_6050();
   
-  //calibrate_mpu_6050();
+  calibrate_mpu_6050();
 
   setupRadio();
   
@@ -80,10 +84,13 @@ void setup() {
   //wdt_enable(WDTO_15MS);
   
   loop_timer = micros();
+  
+  arm_counter = millis();
+  armed = false;
 }
 
 void loop() {
-  //updateMPU();
+  updateMPU();
   
   updateRadio();
   
@@ -100,10 +107,11 @@ void setupRadio(){
     if(radio.readReg(REG_SYNCVALUE2) == NETWORK_RFM69) {
       radio_ready = true;
     
-      radio.setPowerLevel(0);
+      radio.setPowerLevel(17);
+      radio.setHighPower();
   
-      radio.writeReg(REG_BITRATEMSB, RF_BITRATEMSB_9600);
-      radio.writeReg(REG_BITRATELSB, RF_BITRATELSB_9600);
+      radio.writeReg(REG_BITRATEMSB, RF_BITRATEMSB_19200);
+      radio.writeReg(REG_BITRATELSB, RF_BITRATELSB_19200);
     }
   }
 }
@@ -126,7 +134,7 @@ void updateRadio(){
 void setupPWM(){
   pwm.begin();
   pwm.setPWMFreq(SERVOFREQ);
-  setThrottle(0, 0);
+  setThrottle(THROTTLE_HEADER, 0);
 }
 
 void setThrottle(byte pin, unsigned char percent){
@@ -190,11 +198,19 @@ void updateMPU(){
   angle_pitch_output = angle_pitch;
   angle_roll_output = angle_roll;
   
-  setAngle(15, angle_roll_output/2);
-  setAngle(11, angle_pitch_output/2);
+  setAngle(15, angle_roll_output/2.0);
+  setAngle(11, angle_pitch_output/2.0);
   setAngle(7, 45);
   setAngle(6, 0);
   setAngle(5, -45);
+  
+  if(!armed && millis() - arm_counter > 8000) {
+    armed = true;
+  }
+  
+  if(armed) {
+    setThrottle(THROTTLE_HEADER, abs(angle_roll_output * 1.5));
+  }
 }
 
 void read_mpu_6050_data(){                                             //Subroutine for reading the raw gyro and accelerometer data

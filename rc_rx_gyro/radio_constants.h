@@ -23,7 +23,7 @@
 #define TX_PER_SECOND 30
 
 #define SIGNAL_WARN_LB -85
-#define SIGNAL_WARN_UB -110
+#define SIGNAL_WARN_UB -100
 #define SIGNAL_WARN_TIME 750
 
 #endif

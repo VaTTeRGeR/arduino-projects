@@ -24,6 +24,6 @@
 
 #define SIGNAL_WARN_LB -85
 #define SIGNAL_WARN_UB -110
-#define SIGNAL_WARN_TIME 500
+#define SIGNAL_CHECK_SPACING 15
 
 #endif
