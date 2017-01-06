@@ -2,5 +2,7 @@
 #define _RC_MPU6050_CONSTANTS_H
 
 #define SAMPLERATE  100
+#define Q_RADDEG    57.29577
+#define Q_DEGRAD    0.01745329
 
 #endif

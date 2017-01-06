@@ -17,7 +17,7 @@
 /* --- */
 
 #include "mpu6050_constants.h"
-#include "quaternion.h"
+#include "math3d.h"
 
 /* --- */
 
@@ -60,6 +60,9 @@ boolean gyro_angles_set;
 /* - SETUP - */
 
 void setup() {
+
+  Serial.begin(115200);
+  
   //wdt_enable(WDTO_1S);
   
   pinMode(13, OUTPUT);
@@ -78,7 +81,7 @@ void setup() {
   
   calibrate_mpu_6050();
 
-  setupRadio();
+  //setupRadio();
   
   //wdt_reset();
   //wdt_enable(WDTO_15MS);
@@ -90,9 +93,9 @@ void setup() {
 }
 
 void loop() {
-  updateMPU();
+  updateMPUX();
   
-  updateRadio();
+  //updateRadio();
   
   while(micros() - loop_timer < 1000000/SAMPLERATE);
   loop_timer = micros();
@@ -204,6 +207,12 @@ void updateMPU(){
   setAngle(6, 0);
   setAngle(5, -45);
   
+  if(abs(angle_roll_output) > 45 || abs(angle_pitch_output) > 45) {
+    digitalWrite(13, HIGH);
+  } else {
+    digitalWrite(13, LOW);
+  }
+  
   if(!armed && millis() - arm_counter > 8000) {
     armed = true;
   }
@@ -211,6 +220,62 @@ void updateMPU(){
   if(armed) {
     setThrottle(THROTTLE_HEADER, abs(angle_roll_output * 1.5));
   }
+}
+
+Quat rq;
+Vec3 Vector3Z = Vector(0,0,1);
+
+void updateMPUX() {
+
+  unsigned long t0 = micros();
+  
+  read_mpu_6050_data();                                                //Read the raw acc and gyro data from the MPU-6050
+
+  gyro_x -= gyro_x_cal;                                                //Subtract the offset calibration value from the raw gyro_x value
+  gyro_y -= gyro_y_cal;                                                //Subtract the offset calibration value from the raw gyro_y value
+  gyro_z -= gyro_z_cal;                                                //Subtract the offset calibration value from the raw gyro_z value
+
+  float gscl = 1.0 / 16.375 * Q_DEGRAD;            // for 2000 deg/s setting (in rad/s)
+  float ascl = 1.0 / 2048.0;                     // for 16 g setting
+
+  Vec3 GyroVec = Vector(((float)gyro_x) * gscl, ((float)gyro_y) * gscl, ((float)gyro_z) * gscl);
+
+  Vec3 Accel_Body = Vector(acc_x * ascl, acc_y * ascl, acc_z * ascl);
+
+  Vec3 Accel_World = Rotate(rq, Accel_Body); 
+
+  Vec3 correction_World = CrossProd(Accel_World, Vector3Z);
+
+  Vec3 correction_Body = Rotate(correction_World, rq);
+
+  GyroVec = Sum(GyroVec, correction_Body);
+
+  Quat incrementalRotation = Quaternion(GyroVec, 1000000/SAMPLERATE);
+
+  rq = Mul(incrementalRotation, rq);
+
+  Vec3 YPR = YawPitchRoll(rq);
+  angle_roll_output = -YPR.z * Q_RADDEG;
+  angle_pitch_output = -YPR.y * Q_RADDEG;
+
+  Serial.println(micros()-t0);
+  
+  setAngle(15, angle_pitch_output/2.0);
+  setAngle(11, angle_roll_output/2.0);
+  setAngle(7, 45);
+  setAngle(6, 0);
+  setAngle(5, -45);
+
+  if(abs(angle_roll_output) > 45 || abs(angle_pitch_output) > 45) {
+    digitalWrite(13, HIGH);
+  } else {
+    digitalWrite(13, LOW);
+  }
+  
+  //Serial.print(angle_roll_output,3);
+  //Serial.print(',');
+  //Serial.print(angle_pitch_output,3);
+  //Serial.println();
 }
 
 void read_mpu_6050_data(){                                             //Subroutine for reading the raw gyro and accelerometer data
