@@ -39,13 +39,13 @@ unsigned long   arm_counter;
 boolean         armed;
 
 
-long    gyro_x_cal, gyro_y_cal, gyro_z_cal;
+signed long    gyro_x_cal, gyro_y_cal, gyro_z_cal;
 
-int     gyro_x, gyro_y, gyro_z;
-long    acc_x, acc_y, acc_z;
+signed long    gyro_x, gyro_y, gyro_z;
+signed long    acc_x, acc_y, acc_z;
 
-long    acc_total_vector;
-long    still_length_acc;
+signed long    acc_total_vector;
+signed long    still_length_acc;
 
 float   angle_pitch, angle_roll;
 float   angle_roll_acc, angle_pitch_acc;
@@ -54,7 +54,9 @@ int     angle_pitch_buffer, angle_roll_buffer;
 float   angle_pitch_output, angle_roll_output;
 
 int     temperature;
+
 long    loop_timer;
+
 boolean gyro_angles_set;
 
 /* - SETUP - */
@@ -62,7 +64,7 @@ boolean gyro_angles_set;
 void setup() {
 
   Serial.begin(115200);
-  
+
   //wdt_enable(WDTO_1S);
   
   pinMode(13, OUTPUT);
@@ -93,7 +95,33 @@ void setup() {
 }
 
 void loop() {
-  updateMPUX();
+  
+  read_mpu_6050_data();
+
+  gyro_x -= gyro_x_cal;
+  gyro_y -= gyro_y_cal;
+  gyro_z -= gyro_z_cal;
+
+  Serial.write(64);
+  Serial.write(63);
+  Serial.write(62);
+
+  Serial.write((byte *)(&gyro_x), 4);
+  Serial.write((byte *)(&gyro_y), 4);
+  Serial.write((byte *)(&gyro_z), 4);
+
+  Serial.write((byte *)(&acc_x), 4);
+  Serial.write((byte *)(&acc_y), 4);
+  Serial.write((byte *)(&acc_z), 4);
+
+  /*Serial.print(acc_x);
+  Serial.print(',');
+  Serial.print(acc_y);
+  Serial.print(',');
+  Serial.println(acc_z);
+  Serial.flush();*/
+  
+  //updateMPU();
   
   //updateRadio();
   
@@ -189,8 +217,8 @@ void updateMPU(){
     gyro_angles_set = true;                                            //Set the IMU started flag
   } else if((((float)still_length_acc) * 1.025) > ((float)acc_total_vector)
          && (((float)still_length_acc) * 0.975) < ((float)acc_total_vector)) {
-    angle_pitch = angle_pitch * 0.98 + angle_pitch_acc * 0.02;       //Correct the drift of the gyro pitch angle with the accelerometer pitch angle
-    angle_roll = angle_roll * 0.98 + angle_roll_acc * 0.02;          //Correct the drift of the gyro roll angle with the accelerometer roll angle
+    angle_pitch = angle_pitch * 0.95 + angle_pitch_acc * 0.05;       //Correct the drift of the gyro pitch angle with the accelerometer pitch angle
+    angle_roll = angle_roll * 0.95 + angle_roll_acc * 0.05;          //Correct the drift of the gyro roll angle with the accelerometer roll angle
   }
 
   
@@ -200,6 +228,10 @@ void updateMPU(){
 
   angle_pitch_output = angle_pitch;
   angle_roll_output = angle_roll;
+  
+  Serial.print("AA");
+  Serial.write((byte)angle_roll_output);
+  Serial.write((byte)angle_pitch_output);
   
   setAngle(15, angle_roll_output/2.0);
   setAngle(11, angle_pitch_output/2.0);
@@ -280,40 +312,46 @@ void updateMPUX() {
 
 void read_mpu_6050_data(){                                             //Subroutine for reading the raw gyro and accelerometer data
   Wire.beginTransmission(0x68);                                        //Start communicating with the MPU-6050
-  Wire.write(0x3B);                                                    //Send the requested starting register
-  Wire.endTransmission();                                              //End the transmission
-  Wire.requestFrom(0x68,14);                                           //Request 14 bytes from the MPU-6050
+
+  Wire.requestFrom(0x68, 14);                                           //Request 14 bytes from the MPU-6050
   while(Wire.available() < 14);                                        //Wait until all the bytes are received
   
   //READS IN THIS ORDER: AX, AY, AZ | GX, GY, GZ
   
-  acc_z = (Wire.read()<<8|Wire.read());                                  //Add the low and high byte to the acc_x variable
+  acc_x = (Wire.read()<<8|Wire.read());                                  //Add the low and high byte to the acc_x variable
   acc_y = (Wire.read()<<8|Wire.read());                                  //Add the low and high byte to the acc_y variable
-  acc_x = -(Wire.read()<<8|Wire.read());                                  //Add the low and high byte to the acc_z variable
-  temperature = Wire.read()<<8|Wire.read();                            //Add the low and high byte to the temperature variable
-  gyro_z = (Wire.read()<<8|Wire.read());                                 //Add the low and high byte to the gyro_x variable
-  gyro_y = (Wire.read()<<8|Wire.read());                                 //Add the low and high byte to the gyro_y variable
-  gyro_x = -(Wire.read()<<8|Wire.read());                                 //Add the low and high byte to the gyro_z variable
+  acc_z = (Wire.read()<<8|Wire.read());                                  //Add the low and high byte to the acc_z variable
 
+  temperature = Wire.read()<<8|Wire.read();                            //Add the low and high byte to the temperature variable
+  
+  gyro_x = (Wire.read()<<8|Wire.read());                                 //Add the low and high byte to the gyro_x variable
+  gyro_y = (Wire.read()<<8|Wire.read());                                 //Add the low and high byte to the gyro_y variable
+  gyro_z = (Wire.read()<<8|Wire.read());                                 //Add the low and high byte to the gyro_z variable
+
+  Wire.endTransmission();                                              //End the transmission
+
+  resetPointerMPU();
 }
 
 void setup_mpu_6050(){
-  Wire.begin();                                                        //Start I2C as master
-  //Activate the MPU-6050
-  Wire.beginTransmission(0x68);                                        //Start communicating with the MPU-6050
-  Wire.write(0x6B);                                                    //Send the requested starting register
-  Wire.write(0x00);                                                    //Set the requested starting register
-  Wire.endTransmission();                                              //End the transmission
-  //Configure the accelerometer (+/-8g)
-  Wire.beginTransmission(0x68);                                        //Start communicating with the MPU-6050
-  Wire.write(0x1C);                                                    //Send the requested starting register
-  Wire.write(0x10);                                                    //Set the requested starting register
-  Wire.endTransmission();                                              //End the transmission
-  //Configure the gyro (2000dps full scale)
-  Wire.beginTransmission(0x68);                                        //Start communicating with the MPU-6050
-  Wire.write(0x1B);                                                    //Send the requested starting register
-  Wire.write(0x18);                                                    //Set the requested starting register
-  Wire.endTransmission();                                              //End the transmission
+  
+  Wire.begin();
+  Wire.setClock(400000UL);
+  
+  writeToMPU( 25, byte((8000 / 100) - 1)); //  sample rate divider: sample rate = mstrClock / (1 +  divider)
+  writeToMPU( 26, 0);            //  DLPF set.  (0 = 8kHz master clock else 1kHz master clock)
+  writeToMPU( 27, 0x18);         //  2000 deg/s gyro
+  writeToMPU( 28, 0x10);         //  16g accelerometer
+  writeToMPU( 31, B00000000);    //  no motion detect
+  writeToMPU( 35, B00000000);    //  no FIFO
+  writeToMPU( 36, B00000000);    //  no mstr I2C
+  writeToMPU( 55, B01110000);    //  configure interrupt  -- on when data ready, off on data read
+  writeToMPU( 56, B00000001);    //  interrupt on
+  writeToMPU(106, B00000000);    //  no silly stuff
+  writeToMPU(107, B00000001);    //  no sleep and clock off gyro_X
+  writeToMPU(108, B00000000);    //  no goofball sleep mode
+
+  resetPointerMPU();
 }
 
 void calibrate_mpu_6050(){
@@ -339,6 +377,19 @@ void calibrate_mpu_6050(){
   gyro_z_cal /= cal_rounds;                                                  //Divide the gyro_z_cal variable by 2000 to get the avarage offset
 
   still_length_acc /= cal_rounds;
+}
+
+void writeToMPU(byte address, byte val) { // *** I2C Write Function ***
+  Wire.beginTransmission(0x68); //start transmission to device 
+  Wire.write(address);      // send register address
+  Wire.write(val);        // send value to write
+  Wire.endTransmission();     //end transmission
+}
+
+void resetPointerMPU() { // *** I2C Write Function ***
+  Wire.beginTransmission(0x68); //start transmission to device 
+  Wire.write(0x3B);        // send value to write
+  Wire.endTransmission();     //end transmission
 }
 
 /* --- */
