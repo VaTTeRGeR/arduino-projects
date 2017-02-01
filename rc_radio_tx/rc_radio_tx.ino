@@ -43,6 +43,11 @@ void setup() {
   pinMode(LED_R, OUTPUT);
   pinMode(LED_G, OUTPUT);
 
+  pinMode(A0, INPUT);
+  pinMode(A1, INPUT);
+  pinMode(A2, INPUT);
+  pinMode(A3, INPUT);
+
   pinMode(4, INPUT);
   pinMode(A6, INPUT);
   pinMode(A7, INPUT);
@@ -68,8 +73,8 @@ void setup() {
       radio.setHighPower();
       radio.setPowerLevel(17);
   
-      radio.writeReg(REG_BITRATEMSB, RF_BITRATEMSB_19200);
-      radio.writeReg(REG_BITRATELSB, RF_BITRATELSB_19200);
+      radio.writeReg(REG_BITRATEMSB, RF_BITRATEMSB_57600);
+      radio.writeReg(REG_BITRATELSB, RF_BITRATELSB_57600);
     }
   }
 }
