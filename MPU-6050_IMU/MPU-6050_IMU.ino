@@ -60,15 +60,14 @@ void loop(){
   angle_pitch += ((float)gyro_x) * gyroToAngleChange;                  //Calculate the traveled pitch angle and add this to the angle_pitch variable
   angle_roll += ((float)gyro_y) * gyroToAngleChange;                   //Calculate the traveled roll angle and add this to the angle_roll variable
   
-  float gyrozScl = gyroToAngleChange * (PI / 180.0);                   //The Arduino sin function is in radians
+  float gyrozScl = gyroToAngleChange * Q_DEGRAD;                       //The Arduino sin function is in radians
   angle_pitch += angle_roll * sin(gyro_z * gyrozScl);                  //If the IMU has yawed transfer the roll angle to the pitch angel
   angle_roll -= angle_pitch * sin(gyro_z * gyrozScl);                  //If the IMU has yawed transfer the pitch angle to the roll angel
   
   //Accelerometer angle calculations
   acc_total_vector = sqrt( (acc_x*acc_x) + (acc_y*acc_y) + (acc_z*acc_z) ); //Calculate the total accelerometer vector
-  //57.296 = 1.0 / (3.142 / 180.0) The Arduino asin function is in radians
-  angle_pitch_acc = asin((float)acc_y / acc_total_vector)*  57.296;    //Calculate the pitch angle
-  angle_roll_acc = asin((float)acc_x / acc_total_vector) * -57.296;    //Calculate the roll angle
+  angle_pitch_acc = asin((float)acc_y / acc_total_vector)*  Q_RADDEG;    //Calculate the pitch angle
+  angle_roll_acc = asin((float)acc_x / acc_total_vector) * -Q_RADDEG;    //Calculate the roll angle
   
   //Offset
   //angle_pitch_acc -= 0.0;                                              //Accelerometer calibration value for pitch
@@ -86,13 +85,14 @@ void loop(){
 
   
   //To dampen the pitch and roll angles a complementary filter is used
-  //angle_pitch_output = angle_pitch_output * 0.75 + angle_pitch * 0.25;   //Take 75% of the output pitch value and add 25% of the raw pitch value
-  //angle_roll_output = angle_roll_output * 0.75 + angle_roll * 0.25;      //Take 75% of the output roll value and add 25% of the raw roll value
+  //angle_pitch_output = angle_pitch_output * 0.5 + angle_pitch * 0.5;   //Take 50% of the output pitch value and add 50% of the raw pitch value
+  //angle_roll_output = angle_roll_output * 0.5 + angle_roll * 0.5;      //Take 50% of the output roll value and add 50% of the raw roll value
 
+  //To dampen the pitch and roll angles a complementary filter is used
   angle_pitch_output = angle_pitch;
   angle_roll_output = angle_roll;
 
-  if(abs(abs(angle_pitch_output)-45)<5 || abs(abs(angle_roll_output)-45)<5) {
+  if(abs(abs(angle_pitch_output)-45.0)<2.5 || abs(abs(angle_roll_output)-45.0)<2.5) {
     digitalWrite(13, HIGH);
   } else {
     digitalWrite(13, LOW);
@@ -144,7 +144,7 @@ void setup_mpu_6050(){
 
   Wire.begin(I2C_MASTER, 0, I2C_PINS_18_19, I2C_PULLUP_EXT, 400000); //Start I2C as master
 
-  delay(200);
+  //delay(200);
 
   writeToMPU(107, B00000001);    //  no sleep and clock off gyro_X
   writeToMPU(108, B00000000);    //  no goofball sleep mode
@@ -165,9 +165,10 @@ void setup_mpu_6050(){
 
 void calibrate_mpu_6050(){
   
-  int cal_rounds = 100;
+  signed long cal_rounds = 0;
+  unsigned long t_cal_start = micros();
   
-  for (int cal_int = 0; cal_int < cal_rounds ; cal_int ++){                  //Run this code 2000 times
+  while((micros() - t_cal_start < 500000 && cal_rounds < 2048) || cal_rounds == 0) {                  //Run this code for 250 ms or 2000 cycles
     read_mpu_6050_data();                                              //Read the raw acc and gyro data from the MPU-6050
     
     gyro_x_cal += gyro_x;                                              //Add the gyro x-axis offset to the gyro_x_cal variable
@@ -176,9 +177,7 @@ void calibrate_mpu_6050(){
 
     still_length_acc += sqrt((acc_x*acc_x)+(acc_y*acc_y)+(acc_z*acc_z));
 
-    delay(5);
-    
-    //wdt_reset();
+    cal_rounds++;
   }
   
   gyro_x_cal /= cal_rounds;                                                  //Divide the gyro_x_cal variable by 2000 to get the avarage offset
