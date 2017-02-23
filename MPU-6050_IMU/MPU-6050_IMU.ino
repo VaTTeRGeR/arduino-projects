@@ -29,7 +29,7 @@ boolean gyro_angles_set;
 PWMServo servo;
 
 void setup() {
-  //Serial.begin(115200);                                               //Use only for debugging
+  Serial.begin(115200);                                               //Use only for debugging
   
   pinMode(13, OUTPUT);                                                 //Set output 13 (LED) as output
   
@@ -119,11 +119,14 @@ void loop(){
 
 void read_mpu_6050_data(){                                             //Subroutine for reading the raw gyro and accelerometer data
   Wire.beginTransmission(0x68);                                        //Start communicating with the MPU-6050
+  Wire.write(59);                                                    // send register pointer
+  Wire.endTransmission();                                              //End the transmission
 
-  Wire.requestFrom(0x68, 14);                                           //Request 14 bytes from the MPU-6050
-  while(Wire.available() < 14);                                        //Wait until all the bytes are received
-  
-  //READS IN THIS ORDER: AX, AY, AZ | GX, GY, GZ
+  Wire.requestFrom(0x68, 14, false);                                          //Request 14 bytes from the MPU-6050
+
+  while(Wire.available()<14);
+    
+  //READS IN THIS ORDER: AX, AY, AZ | TEMP | GX, GY, GZ
   
   acc_x = (int16_t)(Wire.read()<<8|Wire.read());                                  //Add the low and high byte to the acc_x variable
   acc_y = (int16_t)(Wire.read()<<8|Wire.read());                                  //Add the low and high byte to the acc_y variable
@@ -135,9 +138,6 @@ void read_mpu_6050_data(){                                             //Subrout
   gyro_y = (int16_t)(Wire.read()<<8|Wire.read());                                 //Add the low and high byte to the gyro_y variable
   gyro_z = (int16_t)(Wire.read()<<8|Wire.read());                                 //Add the low and high byte to the gyro_z variable
 
-  Wire.endTransmission();                                              //End the transmission
-
-  resetPointerMPU();
 }
 
 void setup_mpu_6050(){
@@ -149,18 +149,16 @@ void setup_mpu_6050(){
   writeToMPU(107, B00000001);    //  no sleep and clock off gyro_X
   writeToMPU(108, B00000000);    //  no goofball sleep mode
   
-  writeToMPU( 25, byte((8000 / 100) - 1)); //  sample rate divider: sample rate = mstrClock / (1 +  divider)
-  writeToMPU( 26, 0);            //  DLPF set.  (0 = 8kHz master clock else 1kHz master clock)
+  writeToMPU( 25, byte((8000 / 300) - 1)); //  sample rate divider: sample rate = mstrClock / (1 +  divider)
+  writeToMPU( 26, B00000000);            //  DLPF set.  (0 = 8kHz master clock else 1kHz master clock)
   writeToMPU( 27, 0x18);         //  2000 deg/s gyro
   writeToMPU( 28, 0x10);         //  16g accelerometer
   writeToMPU( 31, B00000000);    //  no motion detect
   writeToMPU( 35, B00000000);    //  no FIFO
   writeToMPU( 36, B00000000);    //  no mstr I2C
-  writeToMPU( 55, B01110000);    //  configure interrupt  -- on when data ready, off on data read
-  writeToMPU( 56, B00000001);    //  interrupt on
+  writeToMPU( 55, B01110000);    //  configure interrupt
+  writeToMPU( 56, B00000000);    //  no interrupt
   writeToMPU(106, B00000000);    //  no silly stuff
-
-  resetPointerMPU();
 }
 
 void calibrate_mpu_6050(){
@@ -193,10 +191,3 @@ void writeToMPU(byte address, byte val) { // *** I2C Write Function ***
   Wire.write(val);        // send value to write
   Wire.endTransmission();     //end transmission
 }
-
-void resetPointerMPU() { // *** I2C Write Function ***
-  Wire.beginTransmission(0x68); //start transmission to device 
-  Wire.write(0x3B);        // send value to write
-  Wire.endTransmission();     //end transmission
-}
-
