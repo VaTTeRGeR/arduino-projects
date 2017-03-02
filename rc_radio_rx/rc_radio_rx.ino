@@ -79,11 +79,11 @@ void blinkLed(unsigned int DELAY_MS, unsigned int LED_PIN) {
 }
 
 void wait(long t_wait) {
-  for(long t_now = millis(); millis() < t_now + t_wait; ){}
+  for(unsigned long t_now = millis(); millis() < t_now + t_wait; ){}
 }
 
 void waitIdle(long t_wait) {
-  long t_now = millis();
+  unsigned long t_now = millis();
   while(millis() < t_now + t_wait){
     idleLoop();
   }

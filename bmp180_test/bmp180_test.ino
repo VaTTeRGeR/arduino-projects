@@ -15,7 +15,7 @@ void setup() {
   double pSum = 0;
 
   for(byte b = 0; b < 64; b++) {
-  delay(sensor.startTemperature());
+    delay(sensor.startTemperature());
     sensor.getTemperature(t);
     delay(sensor.startPressure(3));
     sensor.getPressure(p0, t);
