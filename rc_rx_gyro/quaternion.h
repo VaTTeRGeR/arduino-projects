@@ -1,7 +1,7 @@
 #ifndef _QUATERNION_H
 #define _QUATERNION_H
 
-//This is a (static-ized) port of the libgdx Quaternion & Vector3 Classes by vesuvio and xoppa.
+//This is a (static-ized) port of the libgdx Quaternion & Vector3 Classes made by vesuvio and xoppa, ported by VaTTeRGeR.
 
 #define Q_FP_ERR                0.000001
 
