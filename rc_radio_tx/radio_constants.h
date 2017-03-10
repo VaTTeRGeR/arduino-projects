@@ -15,15 +15,9 @@
 #define LED_G 6
 #define LED_DEFAULT 13
 
-#define NETWORK_RFM69 100
-
-#define TX_RFM69 1
-#define RX_RFM69 2
-
 #define TX_PER_SECOND 30
 
 #define SIGNAL_WARN_LB -85
 #define SIGNAL_WARN_UB -110
-#define SIGNAL_CHECK_SPACING 15
 
 #endif
