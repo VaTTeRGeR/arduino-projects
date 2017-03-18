@@ -19,7 +19,7 @@
 
 /* --- */
 
-RFM69                         radio;
+RFM69                         rfm69;
 
 PacketTransmitter             packetTransmitter;
 PacketPlane                   packetPlane;
@@ -28,12 +28,13 @@ Adafruit_PCD8544              pcd = Adafruit_PCD8544(7, 8, 9);
 
 /* --- */
 
-bool                          radio_initialized = false; // true if radio is initialized successfully
+bool                          rfm69_initialized = false; // true if rfm69 is initialized successfully
 
 uint32_t                      t_last_ack = 0; // timestamp of last rssi packet arrival
 
 elapsedMillis sinceDisplay;
 elapsedMillis sinceSend;
+elapsedMillis sinceCalibration;
 
 /* --- */
 
@@ -67,26 +68,26 @@ void setup() {
   
   pcd.clearDisplay();
   
-  if(radio.initialize(RF69_433MHZ, TX_RFM69, NETWORK_RFM69)) {
-    if(radio.readReg(REG_SYNCVALUE2) == NETWORK_RFM69) {
-      radio_initialized = true;
+  if(rfm69.initialize(RF69_433MHZ, TX_RFM69, NETWORK_RFM69)) {
+    if(rfm69.readReg(REG_SYNCVALUE2) == NETWORK_RFM69) {
+      rfm69_initialized = true;
     
-      radio.setHighPower();
-      radio.setPowerLevel(4);
+      rfm69.setHighPower();
+      rfm69.setPowerLevel(31);
   
-      radio.writeReg(REG_BITRATEMSB, RF_BITRATEMSB_57600);
-      radio.writeReg(REG_BITRATELSB, RF_BITRATELSB_57600);
+      rfm69.writeReg(REG_BITRATEMSB, RF_BITRATEMSB_19200);
+      rfm69.writeReg(REG_BITRATELSB, RF_BITRATELSB_19200);
     }
   }
 }
 
 
 void loop() {
-  if(radio_initialized) {
-    if(radio.receiveDone()) {
-      if(radio.DATALEN == sizeof(PacketPlane)) {
+  if(rfm69_initialized) {
+    if(rfm69.receiveDone()) {
+      if(rfm69.DATALEN == sizeof(PacketPlane)) {
         
-        packetPlane = *(PacketPlane*)radio.DATA;
+        packetPlane = *(PacketPlane*)rfm69.DATA;
 
         t_last_ack = millis();
         
@@ -106,14 +107,18 @@ void loop() {
     if(sinceSend > 33) {
       sinceSend = 0;
       
-      packetTransmitter.ch0 = getYLeft() >> 2;
-      packetTransmitter.ch1 = getXLeft() >> 2;
+      packetTransmitter.ch0 = getYLeft()  >> 2;
+      packetTransmitter.ch1 = getXLeft()  >> 2;
       packetTransmitter.ch2 = getXRight() >> 2;
       packetTransmitter.ch3 = getYRight() >> 2;
+      packetTransmitter.ch4 = getJX()     >> 2;
   
-      packetTransmitter.flags = 0;
-  
-      radio.send(RX_RFM69, (const void*)(&packetTransmitter), sizeof(PacketTransmitter));
+      rfm69.send(RX_RFM69, (const void*)(&packetTransmitter), sizeof(PacketTransmitter));
+
+      if(sinceCalibration > 20000) {
+        sinceCalibration = 0;
+        rfm69.rcCalibration();
+      }
     }
 
     digitalWrite(LED_G, LOW);
@@ -131,25 +136,37 @@ void loop() {
     pcd.setTextSize(1);
     pcd.setCursor(0,0);
   
-    if(radio_initialized) {
+    if(rfm69_initialized) {
       if(millis() - t_last_ack >= 100) {
-        pcd.print("[-]");
+        pcd.print("[SL-]");
       } else {
-        pcd.print("[O]");
+        pcd.print("[OK+]");
       }
     } else {
-      pcd.print("[E]");
+      pcd.print("[ERR]");
     }
     pcd.print(" SS:");
-    pcd.println(constrain(packetPlane.rssi, -20, -120));
+    pcd.println(packetPlane.rssi);
     
-    pcd.print("D/A:");
-    pcd.print(packetPlane.distance);
-    pcd.print("/");
-    pcd.println(packetPlane.home_angle_d<<1);
+    pcd.print("D/H:");
+    if(packetPlane.distance < 1000) {
+      pcd.print(packetPlane.distance);
+      pcd.print("m/");
+    } else {
+      pcd.print(((float)packetPlane.distance)/1000.0,2);
+      pcd.print("km/");
+    }
+    pcd.println(packetPlane.home_angle_d*2);
     
-    pcd.print("H:");
-    pcd.println(packetPlane.height);
+    pcd.print("A/V:");
+    pcd.print(packetPlane.height);
+    pcd.print("m/");
+    pcd.print(packetPlane.speed);
+    pcd.println("kmh");
+  
+    pcd.print("BAT:");
+    pcd.print(((float)packetPlane.voltage)/4000.0);
+    pcd.println("v");
   
     if(getJY() > 768)
       contrast++;

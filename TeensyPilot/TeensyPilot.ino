@@ -1,11 +1,11 @@
 #include <i2c_t3.h>
 #include <SFE_BMP180.h>
 
+//*BMP180*/
+
 #define TASK_SETUP    0
 #define TASK_ACTIVE   1
 #define TASK_INACTIVE 2
-
-//*BMP180*/
 
 SFE_BMP180 bmp180;
 
@@ -27,11 +27,20 @@ MPU6050 mpu6050(100);
 
 #include <Servo.h>
 
-uint8_t offset = 35;
-uint8_t servomid = offset + 90;
+
+//EMAX Servo
+const  int8_t offset_emax   = +35;
+const uint8_t servomid_emax = (uint8_t)(offset_emax + 90);
   
-uint8_t servomin = servomid - 35;
-uint8_t servomax = servomid + 35;
+const uint8_t servomin_emax = servomid_emax - 35;
+const uint8_t servomax_emax = servomid_emax + 35;
+  
+//ES 07 Servo
+const  int8_t offset_es07   = -7;
+const uint8_t servomid_es07 = (uint8_t)(offset_es07 + 90);
+  
+const uint8_t servomin_es07 = servomid_es07 - 45;
+const uint8_t servomax_es07 = servomid_es07 + 45;
   
 
 Servo servo0;
@@ -40,7 +49,7 @@ Servo servo2;
 Servo servo3;
 Servo servo4;
 Servo servo5;
-Servo servo6;
+Servo servo6;  
 
 elapsedMillis sinceServoWrite;
 
@@ -72,7 +81,7 @@ float battery_voltage = 0.0;
 void setup() {
   delay(10); //Wait for all sensors to boot
 
-  Serial.begin(115200);
+  //Serial.begin(115200);
 
   setup_rfm69();
 
@@ -106,18 +115,19 @@ void loop() {
 
   if(sinceServoWrite > 10) {
     sinceServoWrite = 0;
-    servo0.write(map(packetTransmitter.ch0, 0, 255, servomin, servomax));// Throttle
-    servo1.write(map(packetTransmitter.ch1, 255, 0, servomin, servomax));// Rudder
+    servo0.write(map(packetTransmitter.ch0, 0, 255, servomin_emax, servomax_emax));// Throttle
+    servo1.write(map(packetTransmitter.ch1 + 16, 255, 0, servomin_emax, servomax_emax));// Rudder
     
-    servo2.write(map(packetTransmitter.ch2, 0, 255, servomin, servomax));// Aileron Left
-    servo3.write(map(packetTransmitter.ch2, 255, 0, servomin, servomax));// Aileron Right
+    servo2.write(map(packetTransmitter.ch2, 0, 255, servomin_emax, servomax_emax));// Aileron Left?
+    servo3.write(map(packetTransmitter.ch2, 0, 255, servomin_emax, servomax_emax));// Aileron Right?
     
-    servo4.write(map(packetTransmitter.ch3, 0, 255, servomin, servomax));// Elevator
-    servo5.write(offset + 90);
-    servo6.write(offset + 90);
-  }
+    servo4.write(map(packetTransmitter.ch3 + 16, 0, 255, servomin_emax, servomax_emax));// Elevator
 
-  battery_voltage = 0.975*battery_voltage + 0.025*(((float)analogRead(A15))*17.97/4096.0*1.0214);
+    servo5.write(map(packetTransmitter.ch4, 0, 255, servomin_es07, servomax_es07));// Camera
+    servo6.write(map(packetTransmitter.ch4, 255, 0, servomin_es07, servomax_es07));// Camera Inverted
+  
+    battery_voltage = 0.95*battery_voltage + 0.05*(((float)analogRead(A15))*17.97/4096.0*1.0214);
+  }
 
   if (sincePrint > 250) {
     sincePrint = 0;
@@ -169,13 +179,13 @@ void setup_bmp180() {
 
   a0 = bmp180.altitude(p0, p0);
 
-  Serial.print("A0: ");
+  /*Serial.print("A0: ");
   Serial.print(a0);
   Serial.println("m");
 
   Serial.print("T0: ");
   Serial.print(t);
-  Serial.println("c");
+  Serial.println("c");*/
 
   bmp180_wait_t = 0;
   bmp180_task_t = TASK_SETUP;
@@ -187,7 +197,7 @@ void update_bmp180() {
 
     bmp180_wait_t = bmp180.startTemperature();
     if (bmp180_wait_t == 0) {
-      Serial.println("Error while starting temp measurement");
+      //Serial.println("Error while starting temp measurement");
     }
 
     bmp180_task_t = TASK_ACTIVE;
@@ -201,7 +211,7 @@ void update_bmp180() {
     bmp180_wait_t = bmp180.startPressure(3);
 
     if (bmp180_wait_t == 0) {
-      Serial.println("Error while starting pressure measurement");
+      //Serial.println("Error while starting pressure measurement");
     }
 
     bmp180_task_t = TASK_INACTIVE;
@@ -233,10 +243,10 @@ void setup_rfm69() {
       rfm69_initialized = true;
 
       rfm69.setHighPower();
-      rfm69.setPowerLevel(4);
+      rfm69.setPowerLevel(31);
 
-      rfm69.writeReg(REG_BITRATEMSB, RF_BITRATEMSB_57600);
-      rfm69.writeReg(REG_BITRATELSB, RF_BITRATELSB_57600);
+      rfm69.writeReg(REG_BITRATEMSB, RF_BITRATEMSB_19200);
+      rfm69.writeReg(REG_BITRATELSB, RF_BITRATELSB_19200);
 
       sinceCalibration = 0;
       sinceLastMessage = 0;
@@ -252,6 +262,8 @@ void update_rfm69() {
         
         packetTransmitter = *(PacketTransmitter*)rfm69.DATA;
 
+        packetPlane.voltage       = (uint16_t)(constrain(battery_voltage, 0.0, 65.0)*1000.0);
+        
         packetPlane.distance      = (uint16_t)constrain(gps.HOME_DIST, 0.0, 500000.0);
         packetPlane.height        = (uint16_t)constrain(height_bmp180, 0.0, 5000.0);
         packetPlane.speed         = (uint8_t)constrain(gps.SPEED, 0.0, 200.0);
@@ -260,7 +272,7 @@ void update_rfm69() {
         packetPlane.pitch         = (int8_t)mpu6050.PITCH;
         packetPlane.roll          = (int8_t)mpu6050.ROLL;
 
-        packetPlane.rssi          = (int8_t)rfm69.RSSI;
+        packetPlane.rssi          = (int8_t)(rfm69.RSSI != 0 ? rfm69.RSSI : packetPlane.rssi);
 
         //uint32_t t_rfm = micros();
         
@@ -270,7 +282,7 @@ void update_rfm69() {
         Serial.print((micros() - t_rfm));
         Serial.println("us");*/
         
-        if(sinceCalibration > 10000) {
+        if(sinceCalibration > 20000) {
           sinceCalibration = 0;
 
           //t_rfm = micros();
@@ -290,9 +302,9 @@ void update_rfm69() {
       sinceLastMessage = 500;
       
       packetTransmitter.ch0 = 16;
-      packetTransmitter.ch1 = 127;
-      packetTransmitter.ch2 = 127;
-      packetTransmitter.ch3 = 100;
+      packetTransmitter.ch1 = 127+16;
+      packetTransmitter.ch2 = 127+16;
+      packetTransmitter.ch3 = 127;
     }
   }
 }
