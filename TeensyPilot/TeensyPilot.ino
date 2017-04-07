@@ -118,8 +118,8 @@ void loop() {
     servo0.write(map(packetTransmitter.ch0, 0, 255, servomin_emax, servomax_emax));// Throttle
     servo1.write(map(packetTransmitter.ch1 + 16, 255, 0, servomin_emax, servomax_emax));// Rudder
     
-    servo2.write(map(packetTransmitter.ch2, 0, 255, servomin_emax, servomax_emax));// Aileron Left?
-    servo3.write(map(packetTransmitter.ch2, 0, 255, servomin_emax, servomax_emax));// Aileron Right?
+    servo2.write(map(packetTransmitter.ch2, 255, 0, servomin_emax, servomax_emax));// Aileron Left?
+    servo3.write(map(packetTransmitter.ch2, 255, 0, servomin_emax, servomax_emax));// Aileron Right?
     
     servo4.write(map(packetTransmitter.ch3 + 16, 0, 255, servomin_emax, servomax_emax));// Elevator
 
@@ -262,6 +262,8 @@ void update_rfm69() {
         
         packetTransmitter = *(PacketTransmitter*)rfm69.DATA;
 
+        packetPlane.rssi          = (int8_t)(rfm69.RSSI);
+        
         packetPlane.voltage       = (uint16_t)(constrain(battery_voltage, 0.0, 65.0)*1000.0);
         
         packetPlane.distance      = (uint16_t)constrain(gps.HOME_DIST, 0.0, 500000.0);
@@ -272,7 +274,6 @@ void update_rfm69() {
         packetPlane.pitch         = (int8_t)mpu6050.PITCH;
         packetPlane.roll          = (int8_t)mpu6050.ROLL;
 
-        packetPlane.rssi          = (int8_t)(rfm69.RSSI != 0 ? rfm69.RSSI : packetPlane.rssi);
 
         //uint32_t t_rfm = micros();
         
@@ -282,16 +283,10 @@ void update_rfm69() {
         Serial.print((micros() - t_rfm));
         Serial.println("us");*/
         
-        if(sinceCalibration > 20000) {
+        if(sinceCalibration > 10000) {
           sinceCalibration = 0;
 
-          //t_rfm = micros();
-          
           rfm69.rcCalibration();
-          
-          /*Serial.print("RC calibration took ");
-          Serial.print((micros() - t_rfm));
-          Serial.println("us");*/
         }
         
         rfm69.receiveDone();

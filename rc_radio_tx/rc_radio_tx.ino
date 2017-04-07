@@ -1,3 +1,5 @@
+#define DEG_RAD 0.0174533
+
 #include <elapsedMillis.h>
 
 #include <SPI.h>
@@ -11,6 +13,9 @@
 
 #include <Adafruit_GFX.h>
 #include <Adafruit_PCD8544.h>
+
+#define OFF_X 70
+#define OFF_Y 35
 
 /* --- */
 
@@ -31,6 +36,8 @@ Adafruit_PCD8544              pcd = Adafruit_PCD8544(7, 8, 9);
 bool                          rfm69_initialized = false; // true if rfm69 is initialized successfully
 
 uint32_t                      t_last_ack = 0; // timestamp of last rssi packet arrival
+
+int8_t lastRssi = 0;
 
 elapsedMillis sinceDisplay;
 elapsedMillis sinceSend;
@@ -93,12 +100,17 @@ void loop() {
         
         if(packetPlane.rssi <= SIGNAL_WARN_LB) {
           int8_t rssi = packetPlane.rssi;
-          rssi = max(SIGNAL_WARN_UB, rssi); 
+          rssi = max(SIGNAL_WARN_UB, rssi);
           rssi = min(SIGNAL_WARN_LB, rssi);
           rssi = map(rssi, SIGNAL_WARN_LB, SIGNAL_WARN_UB, 0, 255);
           analogWrite(LED_R, rssi);
         } else {
           analogWrite(LED_R, 0);
+        }
+ 
+        if(sinceCalibration > 10000) {
+          sinceCalibration = 0;
+          rfm69.rcCalibration();
         }
       }
     }
@@ -106,19 +118,14 @@ void loop() {
 
     if(sinceSend > 33) {
       sinceSend = 0;
-      
+
       packetTransmitter.ch0 = getYLeft()  >> 2;
       packetTransmitter.ch1 = getXLeft()  >> 2;
       packetTransmitter.ch2 = getXRight() >> 2;
       packetTransmitter.ch3 = getYRight() >> 2;
       packetTransmitter.ch4 = getJX()     >> 2;
-  
-      rfm69.send(RX_RFM69, (const void*)(&packetTransmitter), sizeof(PacketTransmitter));
 
-      if(sinceCalibration > 20000) {
-        sinceCalibration = 0;
-        rfm69.rcCalibration();
-      }
+      rfm69.send(RX_RFM69, (const void*)(&packetTransmitter), sizeof(PacketTransmitter));
     }
 
     digitalWrite(LED_G, LOW);
@@ -146,7 +153,11 @@ void loop() {
       pcd.print("[ERR]");
     }
     pcd.print(" SS:");
-    pcd.println(packetPlane.rssi);
+    int8_t rssi = packetPlane.rssi;
+    if(rssi < -15) {
+      lastRssi = rssi;
+    }
+    pcd.println(lastRssi);
     
     pcd.print("D/H:");
     if(packetPlane.distance < 1000) {
@@ -167,7 +178,20 @@ void loop() {
     pcd.print("BAT:");
     pcd.print(((float)packetPlane.voltage)/4000.0);
     pcd.println("v");
+
+    pcd.print("P/R:");
+    pcd.print(-packetPlane.pitch);
+    pcd.print("/");
+    pcd.println(packetPlane.roll);
+
+    int8_t lx,ly;
+    lx = (int8_t)(7.0 * cos(((float)packetPlane.roll)*DEG_RAD));
+    ly = (int8_t)(7.0 * sin(((float)packetPlane.roll)*DEG_RAD));
   
+    pcd.drawLine(OFF_X-lx, OFF_Y-ly, OFF_X+lx, OFF_Y+ly, BLACK);
+    pcd.drawFastVLine(82, 30, 10, BLACK);
+    pcd.drawFastHLine(81, OFF_Y + packetPlane.pitch/9, 3, BLACK);
+    
     if(getJY() > 768)
       contrast++;
     else if(getJY() < 256)
