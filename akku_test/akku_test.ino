@@ -70,7 +70,7 @@ void loop() {
       pcd.print("T/B:");
       pcd.print(temperature,1);
       pcd.print("/");
-      pcd.print(60+max(0, map(temperature,20,10,0,15)));
+      pcd.print(60+max(0, map(temperature,20,10,0,5)));
   
       pcd.display();
 
@@ -135,7 +135,7 @@ void lcdBiasByTemperature() {
   
   temperature -= 273.15;
 
-  pcd.setContrast(60+max(0, map(temperature,20,10,0,15)));
+  pcd.setContrast(60+max(0, map(temperature,20,10,0,5)));
 }
 
 void relaisOn() {
