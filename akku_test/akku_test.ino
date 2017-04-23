@@ -14,6 +14,7 @@ elapsedMillis since_refresh;
 float offset = 2.494; //Voltage out when relais on, 2.515 if off
 float amphours  = 0.0;
 float watthours = 0.0;
+float temperature = 0.0;
 
 const uint32_t  measure_period = 1000;
 
@@ -24,8 +25,9 @@ float voltage_avg = 0.0;
 
 void setup() {
   pcd.begin();
-  pcd.setContrast(60);
+  pcd.setContrast(61);
 
+  pinMode(A0, INPUT);
   pinMode(A6, INPUT);
   pinMode(A7, INPUT);
 
@@ -41,6 +43,7 @@ void setup() {
 }
 
 void loop() {
+  lcdBiasByTemperature();
   if(finished) {
       pcd.clearDisplay();
       
@@ -62,8 +65,12 @@ void loop() {
       if(minutes < 10) {
         pcd.print(0);
       }
-      pcd.print(minutes);
-  
+      pcd.println(minutes);
+
+      pcd.print("T/B:");
+      pcd.print(temperature,1);
+      pcd.print("/");
+      pcd.print(60+max(0, map(temperature,20,10,0,15)));
   
       pcd.display();
 
@@ -117,6 +124,18 @@ void loop() {
       pcd.display();
     }
   }
+}
+
+void lcdBiasByTemperature() {
+  float vt = ((float)analogRead(A1))*(3.29/1023);
+  temperature = ((3.29*9.85)/(3.29-vt))-9.85;
+  
+  temperature = (log(temperature/10.0)/log(2.718281))/4300.0 + 1.0/298.15;
+  temperature = 1.0/temperature;
+  
+  temperature -= 273.15;
+
+  pcd.setContrast(60+max(0, map(temperature,20,10,0,15)));
 }
 
 void relaisOn() {
