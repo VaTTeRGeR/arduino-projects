@@ -128,7 +128,8 @@ void loop() {
 
 void lcdBiasByTemperature() {
   float vt = ((float)analogRead(A1))*(3.29/1023);
-  temperature = ((3.29*9.85)/(3.29-vt))-9.85;
+  temperature = 9.85/(3.29/vt - 1.0);
+  //temperature = ((3.29*9.85)/(3.29-vt))-9.85;
   
   temperature = (log(temperature/10.0)/log(2.718281))/4300.0 + 1.0/298.15;
   temperature = 1.0/temperature;
