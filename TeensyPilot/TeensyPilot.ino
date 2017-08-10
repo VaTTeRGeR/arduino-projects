@@ -21,7 +21,7 @@ elapsedMillis bmp180_wait_elapsed;
 
 #include <mpu6050.h>
 
-MPU6050 mpu6050(100);
+MPU6050 mpu6050(120);
 
 //*SERVO*/
 
@@ -49,7 +49,7 @@ Servo servo2;
 Servo servo3;
 Servo servo4;
 Servo servo5;
-Servo servo6;  
+Servo servo6;
 
 elapsedMillis sinceServoWrite;
 

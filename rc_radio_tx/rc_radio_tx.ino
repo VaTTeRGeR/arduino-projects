@@ -214,8 +214,8 @@ void loop() {
     pcd.println(packetPlane.roll);
 
     int8_t lx,ly;
-    lx = (int8_t)(7.0 * cos(-((float)packetPlane.roll)*DEG_RAD));
-    ly = (int8_t)(7.0 * sin(-((float)packetPlane.roll)*DEG_RAD));
+    lx = (int8_t)(7.0 * cos(((float)packetPlane.roll)*DEG_RAD));
+    ly = (int8_t)(7.0 * sin(((float)packetPlane.roll)*DEG_RAD));
   
     pcd.drawLine(OFF_X-lx, OFF_Y-ly, OFF_X+lx, OFF_Y+ly, BLACK);
 
