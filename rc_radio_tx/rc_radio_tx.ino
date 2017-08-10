@@ -47,7 +47,7 @@ elapsedMillis sinceCalibration;
 
 /* --- */
 
-byte contrast = 42;
+byte contrast = 64;
 
 void setup() {
 
@@ -130,8 +130,23 @@ void loop() {
       xLeft  = xLeft /2 + getXLeft() /2;
       yLeft  = yLeft /2 + getYLeft() /2;
       xRight = xRight/2 + getXRight()/2;
-      yRight = yRight/2 + getYRight()/2;
-      xJoy   = xJoy  *8/10 + getJX() *2/10;
+      
+      int32_t yRightNew = (int32_t)getYRight();
+
+      int32_t yrs = ((int32_t)getYRight())-512;
+      int32_t sgn_yrs = yrs>=0 ? 1 : -1;
+      yrs = sgn_yrs*((yrs*yrs)/512)+512;
+      
+      yRight = yRight/2 + (uint16_t)(yrs / 2);
+
+      xJoy   = getJX();
+      if(xJoy < 256)
+        xJoy = 0;
+      else if(xJoy < 768) {
+        xJoy = 512;
+      } else {
+        xJoy = 1023;
+      }
 
       packetTransmitter.ch0 = yLeft  >> 2;//throttle
       packetTransmitter.ch1 = xLeft  >> 2;//rudder
@@ -212,8 +227,8 @@ void loop() {
     else if(getJY() < 256)
       contrast--;
   
-    contrast = min(45, contrast);
-    contrast = max(35, contrast);
+    contrast = min(84, contrast);
+    contrast = max(32, contrast);
   
     noInterrupts();
   

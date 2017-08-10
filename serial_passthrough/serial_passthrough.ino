@@ -1,18 +1,18 @@
 void setup() {
-  pinMode(13, OUTPUT);
-  digitalWrite(13, LOW);
+  //pinMode(13, OUTPUT);
+  //digitalWrite(13, LOW);
   
-  Serial.begin(115200);
+  Serial.begin(115200,SERIAL_8E1);
   while (!Serial) {}
   
-  Serial1.begin(115200);
+  Serial1.begin(115200,SERIAL_8E1);
 }
 
 void loop() { // run over and over
   if (Serial1.available()) {
-    digitalWrite(13, HIGH);
+    //digitalWrite(13, HIGH);
     Serial.write(Serial1.read());
-    digitalWrite(13, LOW);
+    //digitalWrite(13, LOW);
   }
   
   if (Serial.available()) {
