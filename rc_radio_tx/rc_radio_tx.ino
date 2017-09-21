@@ -22,6 +22,8 @@
 #include "radio_constants.h"
 #include "radio_joysticks.h"
 
+uint16_t xLeft, yLeft, xRight, yRight, xJoy;
+
 /* --- */
 
 RFM69                         rfm69;
@@ -45,7 +47,7 @@ elapsedMillis sinceCalibration;
 
 /* --- */
 
-byte contrast = 42;
+byte contrast = 64;
 
 void setup() {
 
@@ -86,6 +88,12 @@ void setup() {
       rfm69.writeReg(REG_BITRATELSB, RF_BITRATELSB_19200);
     }
   }
+  
+  xLeft  = getXLeft();
+  yLeft  = getYLeft();
+  xRight = getXRight();
+  yRight = getYRight();
+  xJoy   = getJX();
 }
 
 
@@ -119,11 +127,32 @@ void loop() {
     if(sinceSend > 33) {
       sinceSend = 0;
 
-      packetTransmitter.ch0 = getYLeft()  >> 2;
-      packetTransmitter.ch1 = getXLeft()  >> 2;
-      packetTransmitter.ch2 = getXRight() >> 2;
-      packetTransmitter.ch3 = getYRight() >> 2;
-      packetTransmitter.ch4 = getJX()     >> 2;
+      xLeft  = xLeft /2 + getXLeft() /2;
+      yLeft  = yLeft /2 + getYLeft() /2;
+      xRight = xRight/2 + getXRight()/2;
+      
+      int32_t yRightNew = (int32_t)getYRight();
+
+      int32_t yrs = ((int32_t)getYRight())-512;
+      int32_t sgn_yrs = yrs>=0 ? 1 : -1;
+      yrs = sgn_yrs*((yrs*yrs)/512)+512;
+      
+      yRight = yRight/2 + (uint16_t)(yrs / 2);
+
+      xJoy   = getJX();
+      if(xJoy < 256)
+        xJoy = 0;
+      else if(xJoy < 768) {
+        xJoy = 512;
+      } else {
+        xJoy = 1023;
+      }
+
+      packetTransmitter.ch0 = yLeft  >> 2;//throttle
+      packetTransmitter.ch1 = xLeft  >> 2;//rudder
+      packetTransmitter.ch2 = xRight >> 2;//aileron
+      packetTransmitter.ch3 = yRight >> 2;//elevator
+      packetTransmitter.ch4 = xJoy   >> 2;//camera pan
 
       rfm69.send(RX_RFM69, (const void*)(&packetTransmitter), sizeof(PacketTransmitter));
     }
@@ -180,7 +209,7 @@ void loop() {
     pcd.println("v");
 
     pcd.print("P/R:");
-    pcd.print(-packetPlane.pitch);
+    pcd.print(packetPlane.pitch);
     pcd.print("/");
     pcd.println(packetPlane.roll);
 
@@ -189,16 +218,17 @@ void loop() {
     ly = (int8_t)(7.0 * sin(((float)packetPlane.roll)*DEG_RAD));
   
     pcd.drawLine(OFF_X-lx, OFF_Y-ly, OFF_X+lx, OFF_Y+ly, BLACK);
+
     pcd.drawFastVLine(82, 30, 10, BLACK);
-    pcd.drawFastHLine(81, OFF_Y + packetPlane.pitch/9, 3, BLACK);
+    pcd.drawFastHLine(81, OFF_Y + constrain(-packetPlane.pitch,-6,6), 3, BLACK);
     
     if(getJY() > 768)
       contrast++;
     else if(getJY() < 256)
       contrast--;
   
-    contrast = min(45, contrast);
-    contrast = max(35, contrast);
+    contrast = min(84, contrast);
+    contrast = max(32, contrast);
   
     noInterrupts();
   

@@ -21,7 +21,7 @@ elapsedMillis bmp180_wait_elapsed;
 
 #include <mpu6050.h>
 
-MPU6050 mpu6050(100);
+MPU6050 mpu6050(120);
 
 //*SERVO*/
 
@@ -49,7 +49,7 @@ Servo servo2;
 Servo servo3;
 Servo servo4;
 Servo servo5;
-Servo servo6;  
+Servo servo6;
 
 elapsedMillis sinceServoWrite;
 
@@ -115,7 +115,7 @@ void loop() {
 
   if(sinceServoWrite > 10) {
     sinceServoWrite = 0;
-    servo0.write(map(packetTransmitter.ch0, 0, 255, servomin_emax, servomax_emax));// Throttle
+    servo0.write(constrain(map(packetTransmitter.ch0, 25, 230, servomin_emax, servomax_emax),servomin_emax, servomax_emax));// Throttle
     servo1.write(map(packetTransmitter.ch1 + 16, 255, 0, servomin_emax, servomax_emax));// Rudder
     
     servo2.write(map(packetTransmitter.ch2, 255, 0, servomin_emax, servomax_emax));// Aileron Left?
@@ -300,6 +300,7 @@ void update_rfm69() {
       packetTransmitter.ch1 = 127+16;
       packetTransmitter.ch2 = 127+16;
       packetTransmitter.ch3 = 127;
+      packetTransmitter.ch4 = 127;
     }
   }
 }
