@@ -93,7 +93,7 @@ void setup() {
   yLeft  = getYLeft();
   xRight = getXRight();
   yRight = getYRight();
-  xJoy   = getJX();
+  xJoy   = 32;
 }
 
 
@@ -139,13 +139,10 @@ void loop() {
       
       yRight = yRight/2 + (uint16_t)(yrs / 2);
 
-      xJoy   = getJX();
-      if(xJoy < 256)
-        xJoy = 0;
-      else if(xJoy < 768) {
-        xJoy = 512;
-      } else {
+      if(getJX() < 256) {
         xJoy = 1023;
+      } else if(getJX() > 768) {
+        xJoy = 32;
       }
 
       packetTransmitter.ch0 = yLeft  >> 2;//throttle
