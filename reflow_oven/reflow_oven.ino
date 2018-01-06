@@ -1,4 +1,14 @@
 #include <elapsedMillis.h>
+#include <SPI.h>
+
+#include <U8g2lib.h>
+
+elapsedMillis sinceDraw;
+elapsedMillis sinceGraphUpdate;
+
+elapsedMillis sinceBuzzer;
+
+elapsedMillis sinceInput;
 
 elapsedMillis sinceSSRMeasure;
 elapsedMillis sinceSSRPWM;
@@ -7,8 +17,6 @@ elapsedMillis sinceSerialSend;
 
 elapsedMillis sinceStateUpdate;
 elapsedMillis sincePID;
-
-elapsedMillis sinceBuzzer;
 
 float ssr_temperature  = 0;
 float oven_temperature = 0;
@@ -23,15 +31,14 @@ boolean  ssr_on            = false;
 uint32_t ssr_pwm_dutycycle = 0;
 uint32_t ssr_pwm_period    = 800;
 
-float   oven_rise_per_second            = 1.25; //degrees/second for long heat burst
-float   oven_responsetime               = 10.0; //time until pwm change affects temperature
-float   oven_precutofftime              = oven_rise_per_second*oven_responsetime; //time until pwm change affects temperature
-float   oven_temperature_target         = 0;
+float   oven_temperature_target         = 0.0;
 boolean oven_temperature_target_reached = false;
 
 float error_old = 0.0;
 float error_derivative_old = 0.0;
 float error_time_last_change = 0.0;
+
+float error_integral = 0.0;
 
 #define STATE_IDLE     0
 #define STATE_TO_SOAK  1
@@ -41,23 +48,151 @@ float error_time_last_change = 0.0;
 
 int state = STATE_IDLE;
 
+U8G2_ST7920_128X64_2_HW_SPI u8g2(U8G2_R2, /* CS=*/ 10, /* reset=*/ U8X8_PIN_NONE);
+
+boolean buzzer_on = false;
+
+uint16_t button = 1023;
+uint16_t joy_x  = 512;
+uint16_t joy_y  = 512;
+
+const uint8_t temps_size = 110;
+uint8_t temps[temps_size];
+uint8_t temps_head = 0;
 
 void setup() {
-  pinMode(3 , OUTPUT);
-  pinMode(5 , OUTPUT);
-  pinMode(13, OUTPUT);
+  pinMode(3 , OUTPUT); //buzzer control
+  pinMode(5 , OUTPUT); //ssr control
 
-  pinMode(A0, INPUT);
-  pinMode(A1, INPUT);
+  pinMode(A0, INPUT); //temp_ssr
+  pinMode(A1, INPUT); //temp_oven
+
+  pinMode(16, INPUT); //button Pressed   = 0
+  pinMode(17, INPUT); //joy_x  UpperLeft = 0
+  pinMode(27, INPUT); //joy_y  UpperLeft = 0
   
   Serial.begin(57600);
   Serial.setTimeout(2);
+
+  u8g2.begin();
+  u8g2.setFont(u8g2_font_micro_tr);//height of 6 pixels
+
+  for(uint8_t i = 0; i<temps_size; i++){
+    temps[i] = 0;
+  }
 }
 
+uint8_t temp_dummy = 0;
+
 void loop() {
-  if(sinceBuzzer > 1000) {
+  uint16_t button = analogRead(16);
+  uint16_t joy_x  = analogRead(17);
+  uint16_t joy_y  = analogRead(27);
+  
+  if(sinceGraphUpdate > 500) {
+    sinceGraphUpdate = 0;
+    
+    if(temps_head == temps_size-1) {
+      temps_head = 0;
+    } else {
+      temps_head++;
+    }
+
+    temps[temps_head] = (uint8_t)constrain(oven_temperature,50.0,250.0);
+  }
+
+  if(sinceDraw > 250) {
+    sinceDraw = 0;
+    
+
+    //u8g2.clearDisplay();
+
+    uint32_t t = millis();
+    
+    u8g2.firstPage();
+    do {
+      u8g2.setCursor(0,6);
+      u8g2.print("T:");
+      u8g2.print(oven_temperature,0);
+      u8g2.print("/");
+      u8g2.print(oven_temperature_target,0);
+
+      u8g2.setCursor(5*12,6);
+      u8g2.print("T_SSR:");
+      u8g2.print(ssr_temperature,0);
+
+      u8g2.drawFrame(96,0,32,8);
+      u8g2.drawBox(98,2,(28*ssr_pwm_dutycycle)/100,4);
+      
+      u8g2.drawHLine(0,7,128);
+      u8g2.drawHLine(0,7*3,128);
+      
+      u8g2.setCursor(0,7*4);
+      u8g2.print("250");
+
+      u8g2.setCursor(0,64);
+      u8g2.print("50");
+      
+      u8g2.drawFrame(128-(temps_size+2),7*3,temps_size+2,64-7*3);
+
+      uint8_t temps_index;
+      if(temps_head == temps_size - 1) {
+        temps_index = 0;
+      } else {
+        temps_index = temps_head + 1;
+      }
+
+      uint8_t temps_drawn = 0;
+      
+      while(temps_drawn < temps_size) {
+        u8g2.drawPixel(temps_drawn+128-(temps_size+2)+1, 62 - ((temps[temps_index]-50)*(64-7*3-2))/200);
+
+        temps_index++;
+        if(temps_index == temps_size) {
+          temps_index = 0;
+        }
+        
+        temps_drawn++;
+      }
+            
+    } while (u8g2.nextPage());
+
+    Serial.print("t_render: ");
+    Serial.println(millis()-t);
+
+  }
+  
+  if(sinceBuzzer > 500 && buzzer_on) {
     tone(3,2048,100);
     sinceBuzzer = 0;
+  }
+
+  if(sinceInput > 250) {
+    sinceInput = 0;
+
+    if(button < 512) {
+      tone(3,1536,5);
+    }
+    
+    if(joy_x < 256) {
+      tone(3,1536,5);
+      oven_temperature_target -= 5.0;
+    }
+    
+    if(joy_x > 768) {
+      tone(3,1536,5);
+      oven_temperature_target += 5.0;
+    }
+    
+    if(joy_y < 256) {
+      tone(3,1536,5);
+      oven_temperature_target += 10.0;
+    }
+    
+    if(joy_y > 768) {
+      tone(3,1536,5);
+      oven_temperature_target -= 10.0;
+    }
   }
   
   if(sinceSSRMeasure > 1000) {
@@ -82,18 +217,20 @@ void loop() {
   }
 
 
-  uint32_t pid_interval = 1000;
+  const uint32_t pid_interval = 1000;
   //PID START
   if(sincePID > pid_interval) {
     sincePID = 0;
     
-    const float kP = 7.5;
-    const float kI = 0.0;
-    const float kD = 80.0;
+    const float kP = 20;//7.5;
+    const float kI = 25;//0.0;
+    const float kD = 0;//80.0;
   
     int baseDutyCycle = (getHoldDutyCyclefromTemperature(oven_temperature_target) * 75) / 100;
     
     float error = oven_temperature_target - oven_temperature;
+    error_integral = error_integral + error*(1000.0/(float)pid_interval);
+    error_integral = constrain(error_integral, -5.0, 5.0);
     float error_derivative = (error - error_old)*(1000.0/(float)pid_interval);
 
     //if not enough change do not update derivative error 
@@ -109,10 +246,12 @@ void loop() {
     
     Serial.print("P: ");
     Serial.print(kP * error, 2);
-    Serial.print(", I: 0.00, D: ");
+    Serial.print(", I: ");
+    Serial.print(kI * error_integral, 2);
+    Serial.print(", D: ");
     Serial.println(kD * error_derivative, 2);
     
-    float output = kP * error /*+ kI * integral(error)*/ + kD * error_derivative + 0.5;
+    float output = kP * error + kI * error_integral + kD * error_derivative + 0.5;
     
     
     int dutyCycle = (baseDutyCycle + (int)output);
@@ -177,7 +316,7 @@ void loop() {
 
 uint32_t getHoldDutyCyclefromTemperature(float temperature){
   //https://www.mycurvefit.com/
-  //  T , PWM
+  //  PWM , T
   //----------
   //  0 , 50
   //  15, 100
@@ -211,7 +350,7 @@ void setDutyCycle(int dutycycle) {
 void measureSSRTemperature() {
   const float vcc = 3.33;
   const float rbias = 18.12;//kOhm
-  const float B_NTC = 3950.0;
+  const float B_NTC = 3930.0;//B20/60
 
   const int   A0_value = analogRead(A0);
   const float vt = ((float)(A0_value == 0 ? 1 : A0_value)) / 1023.0 * vcc;
