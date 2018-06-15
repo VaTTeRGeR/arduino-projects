@@ -47,7 +47,7 @@ elapsedMillis sinceCalibration;
 
 /* --- */
 
-byte contrast = 64;
+byte contrast = 85;
 
 void setup() {
 
@@ -103,7 +103,7 @@ void loop() {
       if(rfm69.DATALEN == sizeof(PacketPlane)) {
         
         packetPlane = *(PacketPlane*)rfm69.DATA;
-
+        
         t_last_ack = millis();
         
         if(packetPlane.rssi <= SIGNAL_WARN_LB) {
@@ -161,7 +161,7 @@ void loop() {
     digitalWrite(LED_G, LOW);
   }
   
-  if(sinceDisplay > 50) {
+  if(sinceDisplay > 125) {
     sinceDisplay = 0;
     
     pcd.clearDisplay();
@@ -224,8 +224,8 @@ void loop() {
     else if(getJY() < 256)
       contrast--;
   
-    contrast = min(84, contrast);
-    contrast = max(32, contrast);
+    contrast = min(127, contrast);
+    contrast = max(0, contrast);
   
     noInterrupts();
   
