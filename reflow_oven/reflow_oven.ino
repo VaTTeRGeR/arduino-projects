@@ -89,7 +89,7 @@ void loop() {
   uint16_t joy_x  = analogRead(17);
   uint16_t joy_y  = analogRead(27);
   
-  if(sinceGraphUpdate > 500) {
+  if(sinceGraphUpdate > 2000) {
     sinceGraphUpdate = 0;
     
     if(temps_head == temps_size-1) {
@@ -157,8 +157,8 @@ void loop() {
             
     } while (u8g2.nextPage());
 
-    Serial.print("t_render: ");
-    Serial.println(millis()-t);
+    //Serial.print("t_render: ");
+    //Serial.println(millis()-t);
 
   }
   
@@ -208,9 +208,9 @@ void loop() {
   if(sinceSerialSend > 1000) {
     Serial.print("Oven: ");
     Serial.print(oven_temperature,2);
-    Serial.print(", SSR: ");
+    Serial.print("\tSSR: ");
     Serial.print(ssr_temperature,2);
-    Serial.print(", Oven PWM: ");
+    Serial.print("\tOven PWM: ");
     Serial.println(ssr_pwm_dutycycle);
       
     sinceSerialSend = 0;
@@ -222,15 +222,19 @@ void loop() {
   if(sincePID > pid_interval) {
     sincePID = 0;
     
-    const float kP = 20;//7.5;
-    const float kI = 25;//0.0;
-    const float kD = 0;//80.0;
+    const float kP = 10.0;
+    const float kI = 1.5;
+    const float kD = 60.0;
   
-    int baseDutyCycle = (getHoldDutyCyclefromTemperature(oven_temperature_target) * 75) / 100;
+    int baseDutyCycle = (getHoldDutyCyclefromTemperature(oven_temperature_target) * 85) / 100;
     
     float error = oven_temperature_target - oven_temperature;
-    error_integral = error_integral + error*(1000.0/(float)pid_interval);
-    error_integral = constrain(error_integral, -5.0, 5.0);
+    if(error < 1.0 && error > -1.0 ) {
+      error_integral = error_integral + error*(1000.0/(float)pid_interval);
+      error_integral = constrain(error_integral, -5.0, 5.0);
+    } else {
+      error_integral *= 0.75;
+    }
     float error_derivative = (error - error_old)*(1000.0/(float)pid_interval);
 
     //if not enough change do not update derivative error 
@@ -246,9 +250,9 @@ void loop() {
     
     Serial.print("P: ");
     Serial.print(kP * error, 2);
-    Serial.print(", I: ");
+    Serial.print("\tI: ");
     Serial.print(kI * error_integral, 2);
-    Serial.print(", D: ");
+    Serial.print("\tD: ");
     Serial.println(kD * error_derivative, 2);
     
     float output = kP * error + kI * error_integral + kD * error_derivative + 0.5;
@@ -320,10 +324,10 @@ uint32_t getHoldDutyCyclefromTemperature(float temperature){
   //  PWM , T
   // ---------
   //  0 , 50
-  //  15, 100
-  //  25, 150
-  //  35, 200
-  //  45, 220
+  //  15,10, 100
+  //  25,15, 150
+  //  35,35, 200
+  //  45,40, 220
   temperature = constrain(temperature, 20, 270);
   return   (uint32_t)(
          +  0.5 //rounding
