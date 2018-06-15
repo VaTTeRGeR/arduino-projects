@@ -315,9 +315,10 @@ void loop() {
 }
 
 uint32_t getHoldDutyCyclefromTemperature(float temperature){
-  //https://www.mycurvefit.com/
+  //  A curve fit to experimentally gained values.
+  //  https://www.mycurvefit.com/
   //  PWM , T
-  //----------
+  // ---------
   //  0 , 50
   //  15, 100
   //  25, 150
