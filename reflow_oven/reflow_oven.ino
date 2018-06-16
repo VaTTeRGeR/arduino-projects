@@ -89,6 +89,7 @@ void setup() {
   u8g2.begin();
   u8g2.setFont(u8g2_font_micro_tr);//height of 6 pixels
 
+  temp_history_head = 0;
   for(uint8_t i = 0; i<temp_history_size; i++){
     temp_history[i] = 0;
   }
@@ -111,7 +112,7 @@ void setup() {
   temp_v[5] = 225;
   temp_t[5] = 30;
 
-  temp_v[6] = -80;
+  temp_v[6] = 0;
   temp_t[6] = 0;
 }
 
@@ -147,6 +148,9 @@ void loop() {
       u8g2.print(oven_temperature,0);
       u8g2.print("/");
       u8g2.print(oven_temperature_target,0);
+
+      u8g2.setCursor(5*8,6);
+      u8g2.print(temp_t_remaining);
 
       u8g2.setCursor(5*12,6);
       u8g2.print("T_SSR:");
@@ -203,28 +207,31 @@ void loop() {
 
     if(button < 512) {
       tone(3,1536,5);
-      
-      if(!reflow_in_progress && oven_temperature <= 60.0) {
-        reflow_in_progress = true;
-        temp_i = 0;
-        temp_t_remaining = temp_t[0];
-        setTemperatureTarget((float)temp_v[0]);
-      } else {
-        reflow_in_progress = false;
-        setTemperatureTarget(0.0);
-        temp_t_remaining = 0;
-        temp_i = 0;
-      }
     }
     
     if(joy_x < 256) {
       tone(3,1536,5);
-      oven_temperature_target += 5.0;
+      reflow_in_progress = false;
+      setTemperatureTarget(0.0);
+      temp_t_remaining = 0;
+      temp_i = 0;
+      buzzer_on = false;
     }
     
     if(joy_x > 768) {
       tone(3,1536,5);
-      oven_temperature_target -= 5.0;
+      
+      temp_history_head = 0;
+      for(uint8_t i = 0; i<temp_history_size; i++){
+        temp_history[i] = 0;
+      }
+      
+      if(!reflow_in_progress && oven_temperature <= 80.0) {
+        reflow_in_progress = true;
+        temp_i = 0;
+        temp_t_remaining = temp_t[0];
+        setTemperatureTarget((float)temp_v[0]);
+      }
     }
     
     if(joy_y < 256) {
@@ -266,15 +273,15 @@ void loop() {
     sincePID = 0;
     
     const float kP = 10.0;
-    const float kI = 1.5;
+    const float kI = 1.0;
     const float kD = 60.0;
   
     int baseDutyCycle = (getHoldDutyCyclefromTemperature(oven_temperature_target) * 85) / 100;
     
     float error = oven_temperature_target - oven_temperature;
-    if(error < 1.0 && error > -1.0 ) {
+    if(error < 3.0 && error > 0.0 ) {
       error_integral = error_integral + error*(1000.0/(float)pid_interval);
-      error_integral = constrain(error_integral, -5.0, 5.0);
+      error_integral = constrain(error_integral, -10.0, 10.0);
     } else {
       error_integral *= 0.75;
     }
@@ -289,6 +296,13 @@ void loop() {
       error_time_last_change = 1.0;
     }
     
+    if( (error_old < 0.0 && error > 0.0) || (error_old > 0.0 && error < 0.0) || (abs(error) < 1.5) ) {
+      if(abs(error_old - error) < 5.0) {
+        oven_temperature_target_reached = true;
+        Serial.println("Temperature target reached!");
+      }
+    }
+    
     error_old = error;
     
     Serial.print("P: ");
@@ -301,10 +315,6 @@ void loop() {
     float output = kP * error + kI * error_integral + kD * error_derivative + 0.5;
     
     setDutyCycle( baseDutyCycle + (int)output );
-
-    if( (error_old < 0.0 && error > 0.0) || (error_old > 0.0 && error < 0.0) || (abs(error) < 1.0 && abs(error_derivative) < 0.5) ) {
-      oven_temperature_target_reached = true;
-    }
   }
   //PID END
 
@@ -335,6 +345,10 @@ void loop() {
         temp_i++;
         setTemperatureTarget((float)temp_v[temp_i]);
         temp_t_remaining = temp_t[temp_i];
+
+        if(temp_v[temp_i] < 20) {
+          buzzer_on = true;
+        }
       }
     }
   }
