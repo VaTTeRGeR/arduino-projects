@@ -3,6 +3,7 @@
 
 #include <U8g2lib.h>
 
+/** timing varibles, counted up automatically **/
 elapsedMillis sinceDraw;
 elapsedMillis sinceGraphUpdate;
 
@@ -12,53 +13,64 @@ elapsedMillis sinceInput;
 
 elapsedMillis sinceSSRMeasure;
 elapsedMillis sinceSSRPWM;
+
 elapsedMillis sinceOvenMeasure;
 elapsedMillis sinceSerialSend;
 
 elapsedMillis sinceStateUpdate;
 elapsedMillis sincePID;
 
-float ssr_temperature  = 0;
+/** oven temperature measurement status **/
 float oven_temperature = 0;
-
+boolean oven_ntc_shorted = false;
 boolean oven_ntc_disconnected = false;
+
+/** ssr temperature measurement status **/
+float ssr_temperature  = 0;
+boolean ssr_ntc_shorted  = false;
 boolean ssr_ntc_disconnected  = false;
 
-boolean oven_ntc_shorted = false;
-boolean ssr_ntc_shorted  = false;
-
+/** ssr pwm status and settings **/
 boolean  ssr_on            = false;
-uint32_t ssr_pwm_dutycycle = 0;
-uint32_t ssr_pwm_period    = 800;
+uint32_t ssr_pwm_dutycycle = 0;     // pwm duty cycle from 0 to 100
+uint32_t ssr_pwm_period    = 800;   // pwm period time
 
-float   oven_temperature_target         = 0.0;
+float   oven_temperature_target         = -20.0;
 boolean oven_temperature_target_reached = false;
 
-float error_old = 0.0;
+//** last P from PID **/
+float error_old = -40.0;
+
+//** last D from PID **/
 float error_derivative_old = 0.0;
 float error_time_last_change = 0.0;
 
+//** I from PID **/
 float error_integral = 0.0;
 
-#define STATE_IDLE     0
-#define STATE_TO_SOAK  1
-#define STATE_SOAK     2
-#define STATE_REFLOW   3
-#define STATE_COOL     4
-
-int state = STATE_IDLE;
-
+//** the 128x64 lcd driver **/
 U8G2_ST7920_128X64_2_HW_SPI u8g2(U8G2_R2, /* CS=*/ 10, /* reset=*/ U8X8_PIN_NONE);
 
+//** activates the buzzer if true **/
 boolean buzzer_on = false;
 
+//** input value cache **//
 uint16_t button = 1023;
 uint16_t joy_x  = 512;
 uint16_t joy_y  = 512;
 
-const uint8_t temps_size = 110;
-uint8_t temps[temps_size];
-uint8_t temps_head = 0;
+//** values for the temperature graph **/
+const uint8_t temp_history_size = 110;    //number of data points in the cyclic buffer
+uint8_t temp_history[temp_history_size];  //array of datapoints for the cyclic buffer
+uint8_t temp_history_head = 0;            //head node of the cyclic buffer
+
+//** reflow curve **/
+int16_t temp_v[16];            // temperatures and their...
+int16_t temp_t[16];            // ...corresponding hold times
+int16_t temp_i = 0;           // current temperature step
+int16_t temp_t_remaining = 0; // time to hold remaining
+boolean reflow_in_progress = false;
+
 
 void setup() {
   pinMode(3 , OUTPUT); //buzzer control
@@ -77,12 +89,31 @@ void setup() {
   u8g2.begin();
   u8g2.setFont(u8g2_font_micro_tr);//height of 6 pixels
 
-  for(uint8_t i = 0; i<temps_size; i++){
-    temps[i] = 0;
+  for(uint8_t i = 0; i<temp_history_size; i++){
+    temp_history[i] = 0;
   }
-}
 
-uint8_t temp_dummy = 0;
+  temp_v[0] = 80;
+  temp_t[0] = 30;
+  
+  temp_v[1] = 150;
+  temp_t[1] = 10;
+
+  temp_v[2] = 160;
+  temp_t[2] = 10;
+  
+  temp_v[3] = 170;
+  temp_t[3] = 10;
+  
+  temp_v[4] = 180;
+  temp_t[4] = 10;
+
+  temp_v[5] = 225;
+  temp_t[5] = 30;
+
+  temp_v[6] = -80;
+  temp_t[6] = 0;
+}
 
 void loop() {
   uint16_t button = analogRead(16);
@@ -92,13 +123,13 @@ void loop() {
   if(sinceGraphUpdate > 2000) {
     sinceGraphUpdate = 0;
     
-    if(temps_head == temps_size-1) {
-      temps_head = 0;
+    if(temp_history_head == temp_history_size-1) {
+      temp_history_head = 0;
     } else {
-      temps_head++;
+      temp_history_head++;
     }
 
-    temps[temps_head] = (uint8_t)constrain(oven_temperature,50.0,250.0);
+    temp_history[temp_history_head] = (uint8_t)constrain(oven_temperature,50.0,250.0);
   }
 
   if(sinceDraw > 250) {
@@ -133,26 +164,26 @@ void loop() {
       u8g2.setCursor(0,64);
       u8g2.print("50");
       
-      u8g2.drawFrame(128-(temps_size+2),7*3,temps_size+2,64-7*3);
+      u8g2.drawFrame(128-(temp_history_size+2),7*3,temp_history_size+2,64-7*3);
 
-      uint8_t temps_index;
-      if(temps_head == temps_size - 1) {
-        temps_index = 0;
+      uint8_t temp_history_index;
+      if(temp_history_head == temp_history_size - 1) {
+        temp_history_index = 0;
       } else {
-        temps_index = temps_head + 1;
+        temp_history_index = temp_history_head + 1;
       }
 
-      uint8_t temps_drawn = 0;
+      uint8_t temp_history_drawn = 0;
       
-      while(temps_drawn < temps_size) {
-        u8g2.drawPixel(temps_drawn+128-(temps_size+2)+1, 62 - ((temps[temps_index]-50)*(64-7*3-2))/200);
+      while(temp_history_drawn < temp_history_size) {
+        u8g2.drawPixel(temp_history_drawn+128-(temp_history_size+2)+1, 62 - ((temp_history[temp_history_index]-50)*(64-7*3-2))/200);
 
-        temps_index++;
-        if(temps_index == temps_size) {
-          temps_index = 0;
+        temp_history_index++;
+        if(temp_history_index == temp_history_size) {
+          temp_history_index = 0;
         }
         
-        temps_drawn++;
+        temp_history_drawn++;
       }
             
     } while (u8g2.nextPage());
@@ -172,16 +203,28 @@ void loop() {
 
     if(button < 512) {
       tone(3,1536,5);
+      
+      if(!reflow_in_progress && oven_temperature <= 60.0) {
+        reflow_in_progress = true;
+        temp_i = 0;
+        temp_t_remaining = temp_t[0];
+        setTemperatureTarget((float)temp_v[0]);
+      } else {
+        reflow_in_progress = false;
+        setTemperatureTarget(0.0);
+        temp_t_remaining = 0;
+        temp_i = 0;
+      }
     }
     
     if(joy_x < 256) {
       tone(3,1536,5);
-      oven_temperature_target -= 5.0;
+      oven_temperature_target += 5.0;
     }
     
     if(joy_x > 768) {
       tone(3,1536,5);
-      oven_temperature_target += 5.0;
+      oven_temperature_target -= 5.0;
     }
     
     if(joy_y < 256) {
@@ -257,9 +300,11 @@ void loop() {
     
     float output = kP * error + kI * error_integral + kD * error_derivative + 0.5;
     
-    
-    int dutyCycle = (baseDutyCycle + (int)output);
-    setDutyCycle(dutyCycle);
+    setDutyCycle( baseDutyCycle + (int)output );
+
+    if( (error_old < 0.0 && error > 0.0) || (error_old > 0.0 && error < 0.0) || (abs(error) < 1.0 && abs(error_derivative) < 0.5) ) {
+      oven_temperature_target_reached = true;
+    }
   }
   //PID END
 
@@ -279,32 +324,20 @@ void loop() {
     Serial.println(oven_temperature_target);
   }
 
-  /*if(sinceStateUpdate > 1000) {
-    switch(state) {
-      case STATE_IDLE:
-        
-      break;
+  if(reflow_in_progress && sinceStateUpdate > 1000) {
+    sinceStateUpdate -= 1000;
+    
+    if(oven_temperature_target_reached) {
       
-      case STATE_TO_SOAK:
-        
-      break;
-  
-      case STATE_SOAK:
-        
-      break;
-  
-      case STATE_REFLOW:
-        
-      break;
-  
-      case STATE_COOL:
-        
-      break;
-  
-      default:
-      break;
-    };
-  }*/
+      temp_t_remaining -= 1;
+      
+      if(temp_t_remaining <=0) {
+        temp_i++;
+        setTemperatureTarget((float)temp_v[temp_i]);
+        temp_t_remaining = temp_t[temp_i];
+      }
+    }
+  }
 
   //Add better safeguard!
   /*while(oven_ntc_disconnected || oven_ntc_shorted) {
@@ -341,11 +374,7 @@ uint32_t getHoldDutyCyclefromTemperature(float temperature){
 
 void setTemperatureTarget(float temperature) {
   oven_temperature_target = temperature;
-  oven_temperature_target_reached = isTemperatureReached();
-}
-
-boolean isTemperatureReached() {
-  return oven_temperature_target < oven_temperature;
+  oven_temperature_target_reached = false;
 }
 
 void setDutyCycle(int dutycycle) {
